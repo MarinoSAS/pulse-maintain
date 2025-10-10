@@ -9,6 +9,7 @@ import Tasks from "./pages/Tasks";
 import Maintenance from "./pages/Maintenance";
 import Expenses from "./pages/Expenses";
 import Team from "./pages/Team";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -20,6 +21,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          <Route path="/auth" element={<Auth />} />
           <Route path="/" element={<Dashboard />} />
           <Route path="/assets" element={<Assets />} />
           <Route path="/tasks" element={<Tasks />} />

@@ -1,6 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Package, ClipboardList, Calendar, DollarSign, Users } from "lucide-react";
+import { Home, Package, ClipboardList, Calendar, DollarSign, Users, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "./ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
@@ -13,6 +15,7 @@ const navigation = [
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  const { user, signOut } = useAuth();
 
   return (
     <div className="flex h-screen bg-background">
@@ -45,7 +48,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="p-4 border-t border-sidebar-border">
-          <p className="text-xs text-sidebar-foreground/60">© 2025 MaintenancePro</p>
+          <div className="mb-3">
+            <p className="text-xs text-sidebar-foreground/60">Logged in as</p>
+            <p className="text-sm font-medium truncate text-sidebar-foreground">{user?.email}</p>
+          </div>
+          <Button
+            onClick={signOut}
+            variant="outline"
+            size="sm"
+            className="w-full justify-start gap-2"
+          >
+            <LogOut className="w-4 h-4" />
+            Sign Out
+          </Button>
         </div>
       </div>
 
