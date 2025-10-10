@@ -51,9 +51,11 @@ const recentAssets = [
 const assetFormSchema = z.object({
   assetId: z.string().min(1, "Asset ID is required").max(50, "Asset ID too long"),
   name: z.string().min(1, "Asset name is required").max(100, "Asset name too long"),
+  description: z.string().max(500, "Description too long").optional(),
   category: z.enum(["Vehicles", "Equipment", "Tools", "Facilities"], {
     required_error: "Please select a category",
   }),
+  assignedTo: z.string().max(100, "Name too long").optional(),
   status: z.enum(["Active", "Maintenance", "Inactive"], {
     required_error: "Please select a status",
   }),
@@ -68,10 +70,14 @@ export default function Assets() {
     defaultValues: {
       assetId: "",
       name: "",
+      description: "",
       status: "Active",
+      assignedTo: "",
       lastService: "",
     },
   });
+
+  const selectedCategory = form.watch("category");
 
   const onSubmit = (values: z.infer<typeof assetFormSchema>) => {
     console.log(values);
@@ -132,6 +138,19 @@ export default function Assets() {
                   />
                   <FormField
                     control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description (Optional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Asset description or notes" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
                     name="category"
                     render={({ field }) => (
                       <FormItem>
@@ -153,6 +172,21 @@ export default function Assets() {
                       </FormItem>
                     )}
                   />
+                  {selectedCategory && selectedCategory !== "Facilities" && (
+                    <FormField
+                      control={form.control}
+                      name="assignedTo"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Assigned To (Optional)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Team member name" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
                   <FormField
                     control={form.control}
                     name="status"
