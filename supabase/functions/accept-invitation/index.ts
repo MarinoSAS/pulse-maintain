@@ -98,7 +98,19 @@ serve(async (req) => {
       }
 
       userId = existingUser.id;
-      console.log('Using existing user, will update role and team member');
+      
+      // Update the password for the existing user
+      const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(
+        userId,
+        { password: password }
+      );
+
+      if (passwordError) {
+        console.error('Error updating password:', passwordError);
+        throw passwordError;
+      }
+
+      console.log('Using existing user, updated password, will update role and team member');
     } else {
       console.log('Creating new user with email:', generatedEmail);
 
