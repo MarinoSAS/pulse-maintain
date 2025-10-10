@@ -4,59 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Mail, Phone } from "lucide-react";
-
-const teamMembers = [
-  {
-    id: 1,
-    name: "John Smith",
-    initials: "JS",
-    role: "Senior Technician",
-    email: "john.smith@company.com",
-    phone: "+1 (555) 123-4567",
-    activeTasks: 3,
-    completedTasks: 28,
-  },
-  {
-    id: 2,
-    name: "Sarah Jones",
-    initials: "SJ",
-    role: "Maintenance Supervisor",
-    email: "sarah.jones@company.com",
-    phone: "+1 (555) 234-5678",
-    activeTasks: 2,
-    completedTasks: 45,
-  },
-  {
-    id: 3,
-    name: "Mike Johnson",
-    initials: "MJ",
-    role: "Technician",
-    email: "mike.johnson@company.com",
-    phone: "+1 (555) 345-6789",
-    activeTasks: 4,
-    completedTasks: 22,
-  },
-  {
-    id: 4,
-    name: "Emily Brown",
-    initials: "EB",
-    role: "Equipment Specialist",
-    email: "emily.brown@company.com",
-    phone: "+1 (555) 456-7890",
-    activeTasks: 2,
-    completedTasks: 31,
-  },
-  {
-    id: 5,
-    name: "David Lee",
-    initials: "DL",
-    role: "HVAC Technician",
-    email: "david.lee@company.com",
-    phone: "+1 (555) 567-8901",
-    activeTasks: 1,
-    completedTasks: 19,
-  },
-];
+import { teamMembers } from "@/data/teamMembers";
 
 export default function Team() {
   return (

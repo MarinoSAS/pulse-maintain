@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { teamMembers } from "@/data/teamMembers";
 
 const assetCategories = [
   { name: "Vehicles", count: 12, icon: Truck, color: "bg-primary/10 text-primary" },
@@ -179,9 +180,20 @@ export default function Assets() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Assigned To (Optional)</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Team member name" {...field} />
-                          </FormControl>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select team member" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {teamMembers.map((member) => (
+                                <SelectItem key={member.id} value={member.name}>
+                                  {member.name} - {member.role}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
