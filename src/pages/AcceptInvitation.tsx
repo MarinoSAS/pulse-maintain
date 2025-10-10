@@ -47,9 +47,14 @@ export default function AcceptInvitation() {
         .select("*")
         .eq("token", token)
         .eq("accepted", false)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        toast.error("Invalid or expired invitation");
+        navigate("/auth");
+        return;
+      }
 
       if (new Date(data.expires_at) < new Date()) {
         toast.error("This invitation has expired");
