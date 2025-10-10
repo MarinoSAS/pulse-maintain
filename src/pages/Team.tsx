@@ -36,9 +36,9 @@ import {
 } from "@/components/ui/select";
 
 const invitationSchema = z.object({
-  email: z.string().email("Invalid email"),
-  role: z.enum(["admin", "manager"]),
   name: z.string().min(1, "Name is required"),
+  role: z.enum(["admin", "manager"]),
+  description: z.string().optional(),
 });
 
 type Invitation = {
@@ -61,9 +61,9 @@ export default function Team() {
   const form = useForm<z.infer<typeof invitationSchema>>({
     resolver: zodResolver(invitationSchema),
     defaultValues: {
-      email: "",
-      role: "manager",
       name: "",
+      role: "manager",
+      description: "",
     },
   });
 
@@ -96,7 +96,7 @@ export default function Team() {
       const token = crypto.randomUUID();
 
       const { error } = await supabase.from("invitations").insert({
-        email: values.email,
+        invitee_name: values.name,
         role: values.role,
         token,
         invited_by: user.id,
@@ -104,13 +104,13 @@ export default function Team() {
 
       if (error) throw error;
 
-      // Create team member record
+      // Create team member record with description
       const initials = values.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 3);
       await supabase.from("team_members").insert({
         name: values.name,
         initials,
         role: values.role === 'admin' ? 'Administrator' : 'Manager',
-        email: values.email,
+        description: values.description || null,
       });
 
       // Generate invite link
@@ -194,12 +194,12 @@ export default function Team() {
                   />
                   <FormField
                     control={form.control}
-                    name="email"
+                    name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email</FormLabel>
+                        <FormLabel>Description (Optional)</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="john@company.com" {...field} />
+                          <Input placeholder="Senior Technician, 10 years experience" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

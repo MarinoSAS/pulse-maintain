@@ -11,7 +11,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
 const signupSchema = z.object({
-  fullName: z.string().min(1, "Full name is required"),
+  phoneNumber: z.string().min(10, "Please enter a valid phone number"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -68,12 +68,16 @@ export default function AcceptInvitation() {
 
   const onSubmit = async (values: z.infer<typeof signupSchema>) => {
     try {
+      // Create a unique email using phone number since Supabase requires email
+      const generatedEmail = `${values.phoneNumber.replace(/[^0-9]/g, '')}@maintenancepro.local`;
+
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: invitation.email,
+        email: generatedEmail,
         password: values.password,
         options: {
           data: {
-            full_name: values.fullName,
+            full_name: invitation.invitee_name,
+            phone_number: values.phoneNumber,
           },
           emailRedirectTo: `${window.location.origin}/`,
         },
@@ -81,6 +85,15 @@ export default function AcceptInvitation() {
 
       if (signUpError) throw signUpError;
       if (!authData.user) throw new Error("No user returned");
+
+      // Update team member with phone number
+      await supabase
+        .from("team_members")
+        .update({ 
+          phone_number: values.phoneNumber,
+          email: generatedEmail 
+        })
+        .eq("name", invitation.invitee_name);
 
       // Assign the role to the user
       const { error: roleError } = await supabase
@@ -123,6 +136,7 @@ export default function AcceptInvitation() {
         <CardHeader>
           <CardTitle>Accept Invitation</CardTitle>
           <CardDescription>
+            Welcome <span className="font-semibold">{invitation.invitee_name}</span>! <br />
             You've been invited to join MaintenancePro as a{" "}
             <span className="font-semibold">{invitation.role}</span>
           </CardDescription>
@@ -130,24 +144,15 @@ export default function AcceptInvitation() {
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="phoneNumber">Phone Number</Label>
               <Input
-                id="email"
-                type="email"
-                value={invitation.email}
-                disabled
-                className="bg-muted"
+                id="phoneNumber"
+                type="tel"
+                {...register("phoneNumber")}
+                placeholder="+357 99 123 456"
               />
-            </div>
-            <div>
-              <Label htmlFor="fullName">Full Name</Label>
-              <Input
-                id="fullName"
-                {...register("fullName")}
-                placeholder="John Smith"
-              />
-              {errors.fullName && (
-                <p className="text-sm text-destructive mt-1">{String(errors.fullName.message)}</p>
+              {errors.phoneNumber && (
+                <p className="text-sm text-destructive mt-1">{String(errors.phoneNumber.message)}</p>
               )}
             </div>
             <div>

@@ -133,30 +133,33 @@ export type Database = {
         Row: {
           accepted: boolean | null
           created_at: string | null
-          email: string
+          email: string | null
           expires_at: string | null
           id: string
           invited_by: string
+          invitee_name: string | null
           role: Database["public"]["Enums"]["app_role"]
           token: string
         }
         Insert: {
           accepted?: boolean | null
           created_at?: string | null
-          email: string
+          email?: string | null
           expires_at?: string | null
           id?: string
           invited_by: string
+          invitee_name?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           token: string
         }
         Update: {
           accepted?: boolean | null
           created_at?: string | null
-          email?: string
+          email?: string | null
           expires_at?: string | null
           id?: string
           invited_by?: string
+          invitee_name?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           token?: string
         }
@@ -307,11 +310,13 @@ export type Database = {
           active_tasks: number | null
           completed_tasks: number | null
           created_at: string
-          email: string
+          description: string | null
+          email: string | null
           id: string
           initials: string
           name: string
           phone: string | null
+          phone_number: string | null
           role: string
           updated_at: string
         }
@@ -319,11 +324,13 @@ export type Database = {
           active_tasks?: number | null
           completed_tasks?: number | null
           created_at?: string
-          email: string
+          description?: string | null
+          email?: string | null
           id?: string
           initials: string
           name: string
           phone?: string | null
+          phone_number?: string | null
           role: string
           updated_at?: string
         }
@@ -331,11 +338,13 @@ export type Database = {
           active_tasks?: number | null
           completed_tasks?: number | null
           created_at?: string
-          email?: string
+          description?: string | null
+          email?: string | null
           id?: string
           initials?: string
           name?: string
           phone?: string | null
+          phone_number?: string | null
           role?: string
           updated_at?: string
         }
