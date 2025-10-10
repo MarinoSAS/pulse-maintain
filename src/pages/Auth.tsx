@@ -7,11 +7,16 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Wrench } from "lucide-react";
+import { Package } from "lucide-react";
 
 export default function Auth() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
+  const [signupFullName, setSignupFullName] = useState("");
 
   useEffect(() => {
     // Check if user is already logged in
@@ -20,136 +25,119 @@ export default function Auth() {
         navigate("/");
       }
     });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        navigate("/");
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, [navigate]);
 
-  const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    const formData = new FormData(e.currentTarget);
-    const email = formData.get("signup-email") as string;
-    const password = formData.get("signup-password") as string;
-    const fullName = formData.get("full-name") as string;
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword,
+      });
 
-    if (!email || !password) {
-      toast.error("Please fill in all fields");
+      if (error) throw error;
+      toast.success("Logged in successfully!");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to log in");
+    } finally {
       setLoading(false);
-      return;
-    }
-
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters");
-      setLoading(false);
-      return;
-    }
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-        },
-        emailRedirectTo: `${window.location.origin}/`,
-      },
-    });
-
-    setLoading(false);
-
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success("Account created successfully! Please log in.");
     }
   };
 
-  const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    const formData = new FormData(e.currentTarget);
-    const email = formData.get("signin-email") as string;
-    const password = formData.get("signin-password") as string;
+    try {
+      const { error } = await supabase.auth.signUp({
+        email: signupEmail,
+        password: signupPassword,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            full_name: signupFullName,
+          },
+        },
+      });
 
-    if (!email || !password) {
-      toast.error("Please fill in all fields");
+      if (error) throw error;
+      toast.success("Account created! You can now log in.");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to create account");
+    } finally {
       setLoading(false);
-      return;
-    }
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    setLoading(false);
-
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success("Logged in successfully!");
-      navigate("/");
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-primary/5 to-accent/5 p-4">
-      <Card className="w-full max-w-md shadow-xl">
-        <CardHeader className="text-center space-y-4">
-          <div className="flex justify-center">
-            <div className="p-3 rounded-xl bg-gradient-accent">
-              <Wrench className="w-8 h-8 text-white" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-subtle p-4">
+      <Card className="w-full max-w-md shadow-elegant">
+        <CardHeader className="text-center">
+          <div className="flex justify-center mb-4">
+            <div className="w-16 h-16 rounded-xl bg-gradient-accent flex items-center justify-center">
+              <Package className="w-8 h-8 text-white" />
             </div>
           </div>
-          <div>
-            <CardTitle className="text-3xl font-bold">MaintenancePro</CardTitle>
-            <CardDescription>Manage your maintenance operations</CardDescription>
-          </div>
+          <CardTitle className="text-3xl font-bold">MaintenancePro</CardTitle>
+          <CardDescription>Maintenance Department Management Platform</CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="signin" className="w-full">
+          <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
+              <TabsTrigger value="login">Login</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="signin">
-              <form onSubmit={handleSignIn} className="space-y-4">
+            <TabsContent value="login">
+              <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="signin-email">Email</Label>
+                  <Label htmlFor="login-email">Email</Label>
                   <Input
-                    id="signin-email"
-                    name="signin-email"
+                    id="login-email"
                     type="email"
-                    placeholder="you@example.com"
+                    placeholder="you@company.com"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signin-password">Password</Label>
+                  <Label htmlFor="login-password">Password</Label>
                   <Input
-                    id="signin-password"
-                    name="signin-password"
+                    id="login-password"
                     type="password"
-                    placeholder="••••••••"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
                     required
                   />
                 </div>
                 <Button type="submit" className="w-full bg-gradient-accent" disabled={loading}>
-                  {loading ? "Signing in..." : "Sign In"}
+                  {loading ? "Logging in..." : "Log In"}
                 </Button>
               </form>
             </TabsContent>
 
             <TabsContent value="signup">
-              <form onSubmit={handleSignUp} className="space-y-4">
+              <form onSubmit={handleSignup} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="full-name">Full Name</Label>
+                  <Label htmlFor="signup-name">Full Name</Label>
                   <Input
-                    id="full-name"
-                    name="full-name"
+                    id="signup-name"
                     type="text"
-                    placeholder="John Doe"
+                    placeholder="John Smith"
+                    value={signupFullName}
+                    onChange={(e) => setSignupFullName(e.target.value)}
                     required
                   />
                 </div>
@@ -157,9 +145,10 @@ export default function Auth() {
                   <Label htmlFor="signup-email">Email</Label>
                   <Input
                     id="signup-email"
-                    name="signup-email"
                     type="email"
-                    placeholder="you@example.com"
+                    placeholder="you@company.com"
+                    value={signupEmail}
+                    onChange={(e) => setSignupEmail(e.target.value)}
                     required
                   />
                 </div>
@@ -167,10 +156,11 @@ export default function Auth() {
                   <Label htmlFor="signup-password">Password</Label>
                   <Input
                     id="signup-password"
-                    name="signup-password"
                     type="password"
-                    placeholder="••••••••"
+                    value={signupPassword}
+                    onChange={(e) => setSignupPassword(e.target.value)}
                     required
+                    minLength={6}
                   />
                 </div>
                 <Button type="submit" className="w-full bg-gradient-accent" disabled={loading}>
