@@ -126,11 +126,22 @@ serve(async (req) => {
 
     console.log('Invitation accepted successfully');
 
+    // Create a session for the user
+    const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'magiclink',
+      email: generatedEmail,
+    });
+
+    if (sessionError) {
+      console.error('Error generating session:', sessionError);
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true,
         message: 'Account created successfully',
-        email: generatedEmail
+        email: generatedEmail,
+        password: password // Send back so frontend can sign in
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

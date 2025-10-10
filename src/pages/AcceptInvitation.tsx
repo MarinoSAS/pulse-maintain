@@ -75,6 +75,7 @@ export default function AcceptInvitation() {
     try {
       const token = searchParams.get("token");
       
+      // Create account via edge function
       const { data, error } = await supabase.functions.invoke('accept-invitation', {
         body: {
           token,
@@ -86,8 +87,16 @@ export default function AcceptInvitation() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      toast.success("Account created successfully! Please sign in with your phone number.");
-      navigate("/auth");
+      // Automatically sign in the user
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: values.password,
+      });
+
+      if (signInError) throw signInError;
+
+      toast.success("Account created successfully! Welcome!");
+      navigate("/");
     } catch (error: any) {
       toast.error(error.message || "Failed to create account");
     }
