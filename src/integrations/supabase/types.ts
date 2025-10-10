@@ -14,16 +14,313 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      assets: {
+        Row: {
+          asset_id: string
+          assigned_to: string | null
+          category: Database["public"]["Enums"]["asset_category"]
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          last_service: string | null
+          name: string
+          status: Database["public"]["Enums"]["asset_status"]
+          updated_at: string
+        }
+        Insert: {
+          asset_id: string
+          assigned_to?: string | null
+          category: Database["public"]["Enums"]["asset_category"]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          last_service?: string | null
+          name: string
+          status?: Database["public"]["Enums"]["asset_status"]
+          updated_at?: string
+        }
+        Update: {
+          asset_id?: string
+          assigned_to?: string | null
+          category?: Database["public"]["Enums"]["asset_category"]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          last_service?: string | null
+          name?: string
+          status?: Database["public"]["Enums"]["asset_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assets_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expenses: {
+        Row: {
+          amount: number
+          asset_id: string
+          category: string
+          created_at: string
+          created_by: string | null
+          date: string
+          description: string
+          id: string
+          invoice_number: string | null
+          updated_at: string
+          vendor: string | null
+        }
+        Insert: {
+          amount: number
+          asset_id: string
+          category: string
+          created_at?: string
+          created_by?: string | null
+          date: string
+          description: string
+          id?: string
+          invoice_number?: string | null
+          updated_at?: string
+          vendor?: string | null
+        }
+        Update: {
+          amount?: number
+          asset_id?: string
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          description?: string
+          id?: string
+          invoice_number?: string | null
+          updated_at?: string
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_schedules: {
+        Row: {
+          asset_id: string
+          completed: boolean | null
+          completed_date: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          maintenance_type: string
+          notes: string | null
+          scheduled_date: string
+          updated_at: string
+        }
+        Insert: {
+          asset_id: string
+          completed?: boolean | null
+          completed_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          maintenance_type: string
+          notes?: string | null
+          scheduled_date: string
+          updated_at?: string
+        }
+        Update: {
+          asset_id?: string
+          completed?: boolean | null
+          completed_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          maintenance_type?: string
+          notes?: string | null
+          scheduled_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_schedules_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          asset_id: string | null
+          assigned_to: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: Database["public"]["Enums"]["task_priority"]
+          status: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          asset_id?: string | null
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: Database["public"]["Enums"]["task_priority"]
+          status?: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          asset_id?: string | null
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: Database["public"]["Enums"]["task_priority"]
+          status?: Database["public"]["Enums"]["task_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_members: {
+        Row: {
+          active_tasks: number | null
+          completed_tasks: number | null
+          created_at: string
+          email: string
+          id: string
+          initials: string
+          name: string
+          phone: string | null
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          active_tasks?: number | null
+          completed_tasks?: number | null
+          created_at?: string
+          email: string
+          id?: string
+          initials: string
+          name: string
+          phone?: string | null
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          active_tasks?: number | null
+          completed_tasks?: number | null
+          created_at?: string
+          email?: string
+          id?: string
+          initials?: string
+          name?: string
+          phone?: string | null
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "supervisor" | "technician"
+      asset_category: "Vehicles" | "Equipment" | "Tools" | "Facilities"
+      asset_status: "Active" | "Maintenance" | "Inactive"
+      task_priority: "Low" | "Medium" | "High" | "Urgent"
+      task_status: "To Do" | "In Progress" | "Done"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +447,12 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "supervisor", "technician"],
+      asset_category: ["Vehicles", "Equipment", "Tools", "Facilities"],
+      asset_status: ["Active", "Maintenance", "Inactive"],
+      task_priority: ["Low", "Medium", "High", "Urgent"],
+      task_status: ["To Do", "In Progress", "Done"],
+    },
   },
 } as const
