@@ -73,50 +73,20 @@ export default function AcceptInvitation() {
 
   const onSubmit = async (values: z.infer<typeof signupSchema>) => {
     try {
-      // Create a unique email using phone number since Supabase requires email
-      const generatedEmail = `${values.phoneNumber.replace(/[^0-9]/g, '')}@maintenancepro.local`;
-
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: generatedEmail,
-        password: values.password,
-        options: {
-          data: {
-            full_name: invitation.invitee_name,
-            phone_number: values.phoneNumber,
-          },
-          emailRedirectTo: `${window.location.origin}/`,
+      const token = searchParams.get("token");
+      
+      const { data, error } = await supabase.functions.invoke('accept-invitation', {
+        body: {
+          token,
+          phoneNumber: values.phoneNumber,
+          password: values.password,
         },
       });
 
-      if (signUpError) throw signUpError;
-      if (!authData.user) throw new Error("No user returned");
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      // Update team member with phone number
-      await supabase
-        .from("team_members")
-        .update({ 
-          phone_number: values.phoneNumber,
-          email: generatedEmail 
-        })
-        .eq("name", invitation.invitee_name);
-
-      // Assign the role to the user
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .insert({
-          user_id: authData.user.id,
-          role: invitation.role,
-        });
-
-      if (roleError) throw roleError;
-
-      // Mark invitation as accepted
-      await supabase
-        .from("invitations")
-        .update({ accepted: true })
-        .eq("id", invitation.id);
-
-      toast.success("Account created successfully! Please sign in.");
+      toast.success("Account created successfully! Please sign in with your phone number.");
       navigate("/auth");
     } catch (error: any) {
       toast.error(error.message || "Failed to create account");
