@@ -128,7 +128,8 @@ export default function Assets() {
                 {assets.map((asset) => (
                   <div
                     key={asset.id}
-                    className="flex items-center justify-between p-4 rounded-lg border border-border bg-background/50 hover:bg-background transition-colors"
+                    onClick={() => navigate(`/assets/${asset.id}`)}
+                    className="flex items-center justify-between p-4 rounded-lg border border-border bg-background/50 hover:bg-background transition-colors cursor-pointer hover:border-primary/50"
                   >
                     <div className="flex items-center gap-4 flex-1">
                       <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
