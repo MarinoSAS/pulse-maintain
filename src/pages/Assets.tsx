@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Truck, Package, Wrench, Building2, Plus } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -32,13 +32,13 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { teamMembers } from "@/data/teamMembers";
+import { supabase } from "@/integrations/supabase/client";
 
 const assetCategories = [
-  { name: "Vehicles", count: 12, icon: Truck, color: "bg-primary/10 text-primary" },
-  { name: "Equipment", count: 18, icon: Package, color: "bg-accent/10 text-accent" },
-  { name: "Tools", count: 8, icon: Wrench, color: "bg-success/10 text-success" },
-  { name: "Facilities", count: 9, icon: Building2, color: "bg-warning/10 text-warning" },
+  { name: "Vehicles", count: 0, icon: Truck, color: "bg-primary/10 text-primary" },
+  { name: "Equipment", count: 0, icon: Package, color: "bg-accent/10 text-accent" },
+  { name: "Tools", count: 0, icon: Wrench, color: "bg-success/10 text-success" },
+  { name: "Facilities", count: 0, icon: Building2, color: "bg-warning/10 text-warning" },
 ];
 
 const recentAssets = [
@@ -56,15 +56,36 @@ const assetFormSchema = z.object({
   category: z.enum(["Vehicles", "Equipment", "Tools", "Facilities"], {
     required_error: "Please select a category",
   }),
-  assignedTo: z.string().max(100, "Name too long").optional(),
+  assignedTo: z.string().optional(),
   status: z.enum(["Active", "Maintenance", "Inactive"], {
     required_error: "Please select a status",
   }),
   lastService: z.string().optional(),
 });
 
+type Asset = {
+  id: string;
+  asset_id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  status: string;
+  assigned_to: string | null;
+  last_service: string | null;
+  team_member?: { name: string } | null;
+};
+
 export default function Assets() {
   const [open, setOpen] = useState(false);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [categoryCounts, setCategoryCounts] = useState({
+    Vehicles: 0,
+    Equipment: 0,
+    Tools: 0,
+    Facilities: 0,
+  });
   
   const form = useForm<z.infer<typeof assetFormSchema>>({
     resolver: zodResolver(assetFormSchema),
@@ -80,11 +101,76 @@ export default function Assets() {
 
   const selectedCategory = form.watch("category");
 
-  const onSubmit = (values: z.infer<typeof assetFormSchema>) => {
-    console.log(values);
-    toast.success("Asset added successfully!");
-    form.reset();
-    setOpen(false);
+  useEffect(() => {
+    loadAssets();
+    loadTeamMembers();
+  }, []);
+
+  const loadAssets = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("assets")
+        .select(`
+          *,
+          team_member:team_members(name)
+        `)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      
+      setAssets(data || []);
+      
+      // Calculate category counts
+      const counts = { Vehicles: 0, Equipment: 0, Tools: 0, Facilities: 0 };
+      data?.forEach((asset) => {
+        counts[asset.category as keyof typeof counts]++;
+      });
+      setCategoryCounts(counts);
+    } catch (error: any) {
+      toast.error("Failed to load assets");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadTeamMembers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("team_members")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      setTeamMembers(data || []);
+    } catch (error: any) {
+      console.error("Failed to load team members:", error);
+    }
+  };
+
+  const onSubmit = async (values: z.infer<typeof assetFormSchema>) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const { error } = await supabase.from("assets").insert({
+        asset_id: values.assetId,
+        name: values.name,
+        description: values.description || null,
+        category: values.category,
+        status: values.status,
+        assigned_to: values.assignedTo || null,
+        last_service: values.lastService || null,
+        created_by: user?.id,
+      });
+
+      if (error) throw error;
+      
+      toast.success("Asset added successfully!");
+      form.reset();
+      setOpen(false);
+      loadAssets();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to add asset");
+    }
   };
 
   return (
@@ -256,7 +342,9 @@ export default function Assets() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">{category.name}</p>
-                    <p className="text-3xl font-bold mt-2">{category.count}</p>
+                    <p className="text-3xl font-bold mt-2">
+                      {categoryCounts[category.name as keyof typeof categoryCounts]}
+                    </p>
                   </div>
                   <div className={`p-3 rounded-xl ${category.color}`}>
                     <category.icon className="w-6 h-6" />
@@ -271,34 +359,52 @@ export default function Assets() {
         <Card className="shadow-md bg-gradient-card">
           <CardContent className="p-6">
             <h2 className="text-xl font-bold mb-6">All Assets</h2>
-            <div className="space-y-3">
-              {recentAssets.map((asset) => (
-                <div
-                  key={asset.id}
-                  className="flex items-center justify-between p-4 rounded-lg border border-border bg-background/50 hover:bg-background transition-colors"
-                >
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Package className="w-6 h-6 text-primary" />
+            {loading ? (
+              <div className="text-center py-8">Loading assets...</div>
+            ) : assets.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No assets yet. Add your first asset using the button above.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {assets.map((asset) => (
+                  <div
+                    key={asset.id}
+                    className="flex items-center justify-between p-4 rounded-lg border border-border bg-background/50 hover:bg-background transition-colors"
+                  >
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Package className="w-6 h-6 text-primary" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-foreground">{asset.name}</h4>
+                        <p className="text-sm text-muted-foreground">ID: {asset.asset_id}</p>
+                        {asset.description && (
+                          <p className="text-sm text-muted-foreground mt-1">{asset.description}</p>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-foreground">{asset.name}</h4>
-                      <p className="text-sm text-muted-foreground">ID: {asset.id}</p>
+                    <div className="flex items-center gap-4">
+                      {asset.team_member && (
+                        <div className="text-right hidden lg:block">
+                          <p className="text-sm text-muted-foreground">Assigned to</p>
+                          <p className="text-sm font-medium">{asset.team_member.name}</p>
+                        </div>
+                      )}
+                      {asset.last_service && (
+                        <div className="text-right hidden md:block">
+                          <p className="text-sm text-muted-foreground">Last Service</p>
+                          <p className="text-sm font-medium">{asset.last_service}</p>
+                        </div>
+                      )}
+                      <Badge variant={asset.status === "Active" ? "default" : "secondary"}>
+                        {asset.status}
+                      </Badge>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right hidden md:block">
-                      <p className="text-sm text-muted-foreground">Last Service</p>
-                      <p className="text-sm font-medium">{asset.lastService}</p>
-                    </div>
-                    <Badge variant={asset.status === "Active" ? "default" : "secondary"}>
-                      {asset.status}
-                    </Badge>
-                    <Button variant="outline" size="sm">View</Button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

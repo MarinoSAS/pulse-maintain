@@ -2,67 +2,171 @@ import { Layout } from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, AlertCircle, Plus } from "lucide-react";
+import { Calendar, AlertCircle, Plus, CheckCircle2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
-const maintenanceSchedule = [
-  {
-    id: 1,
-    asset: "Forklift FL-001",
-    type: "Annual Service",
-    scheduled: "2025-10-15",
-    status: "urgent",
-    recurrence: "Yearly",
-  },
-  {
-    id: 2,
-    asset: "Van V-003",
-    type: "Oil Change",
-    scheduled: "2025-10-18",
-    status: "upcoming",
-    recurrence: "Every 3 months",
-  },
-  {
-    id: 3,
-    asset: "Cold Room CR-A",
-    type: "Refrigerant Check",
-    scheduled: "2025-10-20",
-    status: "scheduled",
-    recurrence: "Monthly",
-  },
-  {
-    id: 4,
-    asset: "Hand Lift HL-005",
-    type: "Hydraulic Inspection",
-    scheduled: "2025-10-22",
-    status: "scheduled",
-    recurrence: "Every 6 months",
-  },
-  {
-    id: 5,
-    asset: "Van V-001",
-    type: "Safety Inspection",
-    scheduled: "2025-10-25",
-    status: "scheduled",
-    recurrence: "Yearly",
-  },
-];
+const maintenanceSchema = z.object({
+  assetId: z.string().min(1, "Please select an asset"),
+  maintenanceType: z.string().min(1, "Maintenance type is required"),
+  scheduledDate: z.string().min(1, "Date is required"),
+  notes: z.string().optional(),
+});
+
+type MaintenanceSchedule = {
+  id: string;
+  maintenance_type: string;
+  scheduled_date: string;
+  completed: boolean;
+  completed_date: string | null;
+  notes: string | null;
+  asset: { asset_id: string; name: string } | null;
+};
 
 export default function Maintenance() {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "urgent": return "bg-destructive/10 text-destructive border-destructive/20";
-      case "upcoming": return "bg-warning/10 text-warning border-warning/20";
-      default: return "bg-success/10 text-success border-success/20";
+  const [open, setOpen] = useState(false);
+  const [schedules, setSchedules] = useState<MaintenanceSchedule[]>([]);
+  const [assets, setAssets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const form = useForm<z.infer<typeof maintenanceSchema>>({
+    resolver: zodResolver(maintenanceSchema),
+    defaultValues: {
+      assetId: "",
+      maintenanceType: "",
+      scheduledDate: "",
+      notes: "",
+    },
+  });
+
+  useEffect(() => {
+    loadSchedules();
+    loadAssets();
+  }, []);
+
+  const loadSchedules = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("maintenance_schedules")
+        .select(`
+          *,
+          asset:assets(asset_id, name)
+        `)
+        .order("scheduled_date", { ascending: true });
+
+      if (error) throw error;
+      setSchedules(data || []);
+    } catch (error: any) {
+      toast.error("Failed to load maintenance schedules");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "urgent": return "Urgent";
-      case "upcoming": return "Soon";
-      default: return "Scheduled";
+  const loadAssets = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("assets")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      setAssets(data || []);
+    } catch (error: any) {
+      console.error("Failed to load assets:", error);
     }
   };
+
+  const onSubmit = async (values: z.infer<typeof maintenanceSchema>) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const { error } = await supabase.from("maintenance_schedules").insert({
+        asset_id: values.assetId,
+        maintenance_type: values.maintenanceType,
+        scheduled_date: values.scheduledDate,
+        notes: values.notes || null,
+        completed: false,
+        created_by: user?.id,
+      });
+
+      if (error) throw error;
+
+      toast.success("Maintenance scheduled successfully!");
+      form.reset();
+      setOpen(false);
+      loadSchedules();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to schedule maintenance");
+    }
+  };
+
+  const markComplete = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("maintenance_schedules")
+        .update({
+          completed: true,
+          completed_date: new Date().toISOString().split("T")[0],
+        })
+        .eq("id", id);
+
+      if (error) throw error;
+      toast.success("Maintenance marked as complete!");
+      loadSchedules();
+    } catch (error: any) {
+      toast.error("Failed to update maintenance");
+    }
+  };
+
+  const getStatusColor = (schedule: MaintenanceSchedule) => {
+    if (schedule.completed) return "bg-success/10 text-success border-success/20";
+    
+    const today = new Date();
+    const scheduledDate = new Date(schedule.scheduled_date);
+    const daysUntil = Math.ceil((scheduledDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysUntil < 0) return "bg-destructive/10 text-destructive border-destructive/20";
+    if (daysUntil <= 7) return "bg-warning/10 text-warning border-warning/20";
+    return "bg-primary/10 text-primary border-primary/20";
+  };
+
+  const urgentCount = schedules.filter(s => {
+    if (s.completed) return false;
+    const today = new Date();
+    const scheduledDate = new Date(s.scheduled_date);
+    const daysUntil = Math.ceil((scheduledDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return daysUntil <= 7;
+  }).length;
 
   return (
     <Layout>
@@ -72,66 +176,171 @@ export default function Maintenance() {
             <h1 className="text-4xl font-bold text-foreground">Maintenance Schedule</h1>
             <p className="text-muted-foreground mt-1">Track and plan maintenance activities</p>
           </div>
-          <Button className="bg-gradient-accent shadow-md hover:shadow-lg">
-            <Plus className="w-4 h-4 mr-2" />
-            Schedule Maintenance
-          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-accent shadow-md hover:shadow-lg">
+                <Plus className="w-4 h-4 mr-2" />
+                Schedule Maintenance
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Schedule Maintenance</DialogTitle>
+                <DialogDescription>Plan a new maintenance activity</DialogDescription>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="assetId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Asset</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select asset" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {assets.map((asset) => (
+                              <SelectItem key={asset.id} value={asset.id}>
+                                {asset.name} ({asset.asset_id})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="maintenanceType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Maintenance Type</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Oil Change, Annual Service, etc." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="scheduledDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Scheduled Date</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Notes (Optional)</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Additional notes..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="flex justify-end gap-3 pt-4">
+                    <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" className="bg-gradient-accent">
+                      Schedule
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         </div>
 
-        {/* Alert Banner */}
-        <Card className="border-warning/30 bg-warning/5 shadow-md">
-          <CardContent className="p-6">
-            <div className="flex items-start gap-4">
-              <AlertCircle className="w-6 h-6 text-warning flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="font-semibold text-foreground">Upcoming Maintenance</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  You have {maintenanceSchedule.filter(m => m.status === "urgent").length} urgent maintenance tasks requiring immediate attention.
-                </p>
+        {urgentCount > 0 && (
+          <Card className="border-warning/30 bg-warning/5 shadow-md">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <AlertCircle className="w-6 h-6 text-warning flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-semibold text-foreground">Upcoming Maintenance</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    You have {urgentCount} maintenance task{urgentCount !== 1 ? 's' : ''} due within the next 7 days.
+                  </p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Calendar View */}
         <Card className="shadow-md bg-gradient-card">
           <CardContent className="p-6">
             <div className="flex items-center gap-2 mb-6">
               <Calendar className="w-5 h-5 text-primary" />
               <h2 className="text-xl font-bold">Scheduled Maintenance</h2>
             </div>
-            <div className="space-y-4">
-              {maintenanceSchedule.map((item) => (
-                <div
-                  key={item.id}
-                  className={`p-5 rounded-lg border-2 transition-all hover:shadow-md ${getStatusColor(item.status)}`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h4 className="font-semibold text-foreground text-lg">{item.asset}</h4>
-                        <Badge variant={item.status === "urgent" ? "destructive" : "default"}>
-                          {getStatusBadge(item.status)}
-                        </Badge>
+            {loading ? (
+              <div className="text-center py-8">Loading schedules...</div>
+            ) : schedules.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No maintenance scheduled yet. Schedule your first maintenance above.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {schedules.map((schedule) => (
+                  <div
+                    key={schedule.id}
+                    className={`p-4 rounded-lg border-2 ${getStatusColor(schedule)} hover:shadow-md transition-all`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h4 className="font-semibold text-foreground">{schedule.maintenance_type}</h4>
+                          {schedule.completed && (
+                            <Badge variant="outline" className="bg-success/20">
+                              <CheckCircle2 className="w-3 h-3 mr-1" />
+                              Completed
+                            </Badge>
+                          )}
+                        </div>
+                        {schedule.asset && (
+                          <p className="text-sm text-muted-foreground">
+                            {schedule.asset.name} ({schedule.asset.asset_id})
+                          </p>
+                        )}
+                        {schedule.notes && (
+                          <p className="text-sm text-muted-foreground mt-2">{schedule.notes}</p>
+                        )}
                       </div>
-                      <p className="text-sm font-medium text-foreground/80 mb-1">{item.type}</p>
-                      <div className="flex items-center gap-4 mt-3">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Calendar className="w-4 h-4" />
-                          <span>{item.scheduled}</span>
+                      <div className="text-right">
+                        <div className="text-sm font-medium mb-2">
+                          {schedule.completed ? "Completed" : "Scheduled"}: {schedule.completed ? schedule.completed_date : schedule.scheduled_date}
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          Recurrence: <span className="font-medium">{item.recurrence}</span>
-                        </div>
+                        {!schedule.completed && (
+                          <Button
+                            size="sm"
+                            onClick={() => markComplete(schedule.id)}
+                            className="bg-gradient-accent"
+                          >
+                            Mark Complete
+                          </Button>
+                        )}
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="ml-4">
-                      Details
-                    </Button>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
