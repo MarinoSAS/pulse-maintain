@@ -2,7 +2,9 @@ import { Layout } from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Mail, Phone, Shield, Copy, Check } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Mail, Phone, Shield, Copy, Check, Users, CheckCircle2, Clock } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -49,14 +51,29 @@ type Invitation = {
   accepted: boolean;
 };
 
+type TeamMember = {
+  id: string;
+  name: string;
+  initials: string;
+  role: string;
+  description: string | null;
+  email: string | null;
+  phone: string | null;
+  active_tasks: number;
+  completed_tasks: number;
+  created_at: string;
+};
+
 export default function Team() {
   const [open, setOpen] = useState(false);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const { isAdmin, loading: roleLoading } = useUserRole();
   const [inviteLink, setInviteLink] = useState<string>("");
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState("members");
 
   const form = useForm<z.infer<typeof invitationSchema>>({
     resolver: zodResolver(invitationSchema),
@@ -69,7 +86,22 @@ export default function Team() {
 
   useEffect(() => {
     loadInvitations();
+    loadTeamMembers();
   }, []);
+
+  const loadTeamMembers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("team_members")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setTeamMembers(data || []);
+    } catch (error: any) {
+      toast.error("Failed to load team members");
+    }
+  };
 
   const loadInvitations = async () => {
     try {
@@ -121,6 +153,8 @@ export default function Team() {
       setOpen(false);
       setShowLinkDialog(true);
       loadInvitations();
+      loadTeamMembers();
+      setActiveTab("invitations");
     } catch (error: any) {
       toast.error(error.message || "Failed to create invitation");
     }
@@ -162,8 +196,8 @@ export default function Team() {
       <div className="p-8 space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-foreground">Team Invitations</h1>
-            <p className="text-muted-foreground mt-1">Invite team members to join</p>
+            <h1 className="text-4xl font-bold text-foreground">Team Management</h1>
+            <p className="text-muted-foreground mt-1">Manage your team members and invitations</p>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -240,46 +274,132 @@ export default function Team() {
           </Dialog>
         </div>
 
-        {/* Invitations List */}
-        {invitations.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            No invitations sent yet. Invite your first team member using the button above.
-          </div>
-        ) : (
-          <div className="grid gap-4">
-            {invitations.map((invitation) => (
-              <Card key={invitation.id} className="shadow-md bg-gradient-card">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <Avatar className="w-12 h-12">
-                        <AvatarFallback className="bg-primary/10 text-primary">
-                          <Mail className="w-6 h-6" />
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-semibold text-foreground">{invitation.email}</p>
-                        <p className="text-sm text-muted-foreground capitalize">{invitation.role}</p>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="members" className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              Team Members
+            </TabsTrigger>
+            <TabsTrigger value="invitations" className="flex items-center gap-2">
+              <Mail className="w-4 h-4" />
+              Invitations
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="members" className="space-y-4">
+            {teamMembers.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                <p>No team members yet. Invite your first team member using the button above.</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {teamMembers.map((member) => (
+                  <Card key={member.id} className="shadow-md bg-gradient-card hover:shadow-lg transition-shadow">
+                    <CardContent className="p-6 space-y-4">
+                      <div className="flex items-start gap-4">
+                        <Avatar className="w-12 h-12">
+                          <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                            {member.initials}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-foreground truncate">{member.name}</h3>
+                          <Badge variant="secondary" className="mt-1">
+                            {member.role}
+                          </Badge>
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium">
-                        {invitation.accepted ? (
-                          <span className="text-success">Accepted</span>
-                        ) : (
-                          <span className="text-warning">Pending</span>
-                        )}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(invitation.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+
+                      {member.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {member.description}
+                        </p>
+                      )}
+
+                      {(member.email || member.phone) && (
+                        <div className="space-y-2 pt-2 border-t border-border/50">
+                          {member.email && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <Mail className="w-4 h-4 text-muted-foreground" />
+                              <span className="truncate text-muted-foreground">{member.email}</span>
+                            </div>
+                          )}
+                          {member.phone && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <Phone className="w-4 h-4 text-muted-foreground" />
+                              <span className="text-muted-foreground">{member.phone}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-warning" />
+                          <span className="text-sm font-medium text-foreground">
+                            {member.active_tasks || 0}
+                          </span>
+                          <span className="text-xs text-muted-foreground">active</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-success" />
+                          <span className="text-sm font-medium text-foreground">
+                            {member.completed_tasks || 0}
+                          </span>
+                          <span className="text-xs text-muted-foreground">completed</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="invitations" className="space-y-4">
+            {invitations.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Mail className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                <p>No invitations sent yet. Invite your first team member using the button above.</p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {invitations.map((invitation) => (
+                  <Card key={invitation.id} className="shadow-md bg-gradient-card">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <Avatar className="w-12 h-12">
+                            <AvatarFallback className="bg-primary/10 text-primary">
+                              <Mail className="w-6 h-6" />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-semibold text-foreground">{invitation.email}</p>
+                            <p className="text-sm text-muted-foreground capitalize">{invitation.role}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-medium">
+                            {invitation.accepted ? (
+                              <span className="text-success">Accepted</span>
+                            ) : (
+                              <span className="text-warning">Pending</span>
+                            )}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(invitation.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Invitation Link Dialog */}
