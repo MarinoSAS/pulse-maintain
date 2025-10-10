@@ -2,7 +2,7 @@ import { Layout } from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Mail, Phone, Shield } from "lucide-react";
+import { Plus, Mail, Phone, Shield, Copy, Check } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -54,6 +54,9 @@ export default function Team() {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
   const { isAdmin, loading: roleLoading } = useUserRole();
+  const [inviteLink, setInviteLink] = useState<string>("");
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const form = useForm<z.infer<typeof invitationSchema>>({
     resolver: zodResolver(invitationSchema),
@@ -111,34 +114,23 @@ export default function Team() {
       });
 
       // Generate invite link
-      const inviteLink = `${window.location.origin}/accept-invitation?token=${token}`;
+      const link = `${window.location.origin}/accept-invitation?token=${token}`;
+      setInviteLink(link);
       
-      // Send invitation email
-      const { error: emailError } = await supabase.functions.invoke('send-invitation', {
-        body: {
-          email: values.email,
-          role: values.role === 'admin' ? 'Administrator' : 'Manager',
-          inviteLink,
-          inviterName: user.user_metadata?.full_name || user.email || 'Team Admin',
-        },
-      });
-
-      if (emailError) {
-        console.error("Failed to send email:", emailError);
-        toast.error("Invitation created but email failed to send. Share this link manually:", {
-          description: inviteLink,
-          duration: 10000,
-        });
-      } else {
-        toast.success(`Invitation sent to ${values.email}!`);
-      }
-
       form.reset();
       setOpen(false);
+      setShowLinkDialog(true);
       loadInvitations();
     } catch (error: any) {
-      toast.error(error.message || "Failed to send invitation");
+      toast.error(error.message || "Failed to create invitation");
     }
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(inviteLink);
+    setCopied(true);
+    toast.success("Invitation link copied to clipboard!");
+    setTimeout(() => setCopied(false), 2000);
   };
 
   if (roleLoading || loading) {
@@ -289,6 +281,43 @@ export default function Team() {
           </div>
         )}
       </div>
+
+      {/* Invitation Link Dialog */}
+      <Dialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Invitation Link Created!</DialogTitle>
+            <DialogDescription>
+              Share this link with the team member to accept their invitation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 bg-muted rounded-lg">
+              <p className="text-sm font-mono break-all">{inviteLink}</p>
+            </div>
+            <Button 
+              onClick={copyToClipboard} 
+              className="w-full bg-gradient-accent"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copy Link
+                </>
+              )}
+            </Button>
+            <p className="text-xs text-muted-foreground text-center">
+              You can share this link via WhatsApp, email, SMS, or any messaging app.
+              The invitation expires in 7 days.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
