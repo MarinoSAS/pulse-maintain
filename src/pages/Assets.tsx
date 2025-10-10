@@ -61,6 +61,9 @@ const assetFormSchema = z.object({
     required_error: "Please select a status",
   }),
   lastService: z.string().optional(),
+  odometerReading: z.string().optional(),
+  maintenanceIntervalDays: z.string().optional(),
+  maintenanceIntervalKm: z.string().optional(),
 });
 
 type Asset = {
@@ -72,6 +75,11 @@ type Asset = {
   status: string;
   assigned_to: string | null;
   last_service: string | null;
+  odometer_reading: number | null;
+  maintenance_interval_days: number | null;
+  maintenance_interval_km: number | null;
+  last_maintenance_date: string | null;
+  last_maintenance_odometer: number | null;
   team_member?: { name: string } | null;
 };
 
@@ -159,6 +167,9 @@ export default function Assets() {
         status: values.status,
         assigned_to: values.assignedTo || null,
         last_service: values.lastService || null,
+        odometer_reading: values.odometerReading ? parseInt(values.odometerReading) : null,
+        maintenance_interval_days: values.maintenanceIntervalDays ? parseInt(values.maintenanceIntervalDays) : null,
+        maintenance_interval_km: values.maintenanceIntervalKm ? parseInt(values.maintenanceIntervalKm) : null,
         created_by: user?.id,
       });
 
@@ -320,6 +331,61 @@ export default function Assets() {
                       </FormItem>
                     )}
                   />
+                  
+                  {/* Maintenance Configuration */}
+                  {selectedCategory && selectedCategory !== "Facilities" && (
+                    <>
+                      <div className="pt-4 border-t">
+                        <h3 className="font-semibold mb-4">Maintenance Schedule</h3>
+                        <div className="space-y-4">
+                          {selectedCategory === "Vehicles" && (
+                            <FormField
+                              control={form.control}
+                              name="odometerReading"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Current Odometer (km)</FormLabel>
+                                  <FormControl>
+                                    <Input type="number" placeholder="25000" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
+                          <FormField
+                            control={form.control}
+                            name="maintenanceIntervalDays"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Service Interval (days)</FormLabel>
+                                <FormControl>
+                                  <Input type="number" placeholder="180" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          {selectedCategory === "Vehicles" && (
+                            <FormField
+                              control={form.control}
+                              name="maintenanceIntervalKm"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Service Interval (km)</FormLabel>
+                                  <FormControl>
+                                    <Input type="number" placeholder="5000" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  
                   <div className="flex justify-end gap-3 pt-4">
                     <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                       Cancel

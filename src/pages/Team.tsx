@@ -2,10 +2,11 @@ import { Layout } from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Mail, Phone } from "lucide-react";
+import { Plus, Mail, Phone, Shield } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useUserRole } from "@/hooks/useUserRole";
 import {
   Dialog,
   DialogContent,
@@ -26,102 +27,148 @@ import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-const teamMemberSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  initials: z.string().min(1, "Initials required").max(3),
-  role: z.string().min(1, "Role is required"),
+const invitationSchema = z.object({
   email: z.string().email("Invalid email"),
-  phone: z.string().optional(),
+  role: z.enum(["admin", "manager"]),
+  name: z.string().min(1, "Name is required"),
 });
 
-type TeamMember = {
+type Invitation = {
   id: string;
-  name: string;
-  initials: string;
-  role: string;
   email: string;
-  phone: string | null;
-  active_tasks: number;
-  completed_tasks: number;
+  role: string;
+  created_at: string;
+  accepted: boolean;
 };
 
 export default function Team() {
   const [open, setOpen] = useState(false);
-  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
+  const { isAdmin, loading: roleLoading } = useUserRole();
 
-  const form = useForm<z.infer<typeof teamMemberSchema>>({
-    resolver: zodResolver(teamMemberSchema),
+  const form = useForm<z.infer<typeof invitationSchema>>({
+    resolver: zodResolver(invitationSchema),
     defaultValues: {
-      name: "",
-      initials: "",
-      role: "",
       email: "",
-      phone: "",
+      role: "manager",
+      name: "",
     },
   });
 
   useEffect(() => {
-    loadMembers();
+    loadInvitations();
   }, []);
 
-  const loadMembers = async () => {
+  const loadInvitations = async () => {
     try {
       const { data, error } = await supabase
-        .from("team_members")
+        .from("invitations")
         .select("*")
-        .order("name");
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setMembers(data || []);
+      setInvitations(data || []);
     } catch (error: any) {
-      toast.error("Failed to load team members");
+      toast.error("Failed to load invitations");
     } finally {
       setLoading(false);
     }
   };
 
-  const onSubmit = async (values: z.infer<typeof teamMemberSchema>) => {
+  const onSubmit = async (values: z.infer<typeof invitationSchema>) => {
     try {
-      const { error } = await supabase.from("team_members").insert({
-        name: values.name,
-        initials: values.initials.toUpperCase(),
-        role: values.role,
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Generate a random token
+      const token = crypto.randomUUID();
+
+      const { error } = await supabase.from("invitations").insert({
         email: values.email,
-        phone: values.phone || null,
+        role: values.role,
+        token,
+        invited_by: user.id,
       });
 
       if (error) throw error;
 
-      toast.success("Team member added successfully!");
+      // Create team member record
+      const initials = values.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 3);
+      await supabase.from("team_members").insert({
+        name: values.name,
+        initials,
+        role: values.role === 'admin' ? 'Administrator' : 'Manager',
+        email: values.email,
+      });
+
+      // In production, you would send this via email
+      const inviteLink = `${window.location.origin}/accept-invitation?token=${token}`;
+      
+      toast.success("Invitation created! Share this link with the user:", {
+        description: inviteLink,
+        duration: 10000,
+      });
+
       form.reset();
       setOpen(false);
-      loadMembers();
+      loadInvitations();
     } catch (error: any) {
-      toast.error(error.message || "Failed to add team member");
+      toast.error(error.message || "Failed to send invitation");
     }
   };
+
+  if (roleLoading || loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <Layout>
+        <div className="p-8">
+          <div className="text-center py-12">
+            <Shield className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+            <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+            <p className="text-muted-foreground">Only administrators can manage team members.</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
       <div className="p-8 space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-foreground">Team Members</h1>
-            <p className="text-muted-foreground mt-1">Manage your maintenance team</p>
+            <h1 className="text-4xl font-bold text-foreground">Team Invitations</h1>
+            <p className="text-muted-foreground mt-1">Invite team members to join</p>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button className="bg-gradient-accent shadow-md hover:shadow-lg">
                 <Plus className="w-4 h-4 mr-2" />
-                Add Member
+                Invite Member
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Add Team Member</DialogTitle>
-                <DialogDescription>Add a new member to the maintenance team.</DialogDescription>
+                <DialogTitle>Invite Team Member</DialogTitle>
+                <DialogDescription>Send an invitation to join your team.</DialogDescription>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -133,32 +180,6 @@ export default function Team() {
                         <FormLabel>Full Name</FormLabel>
                         <FormControl>
                           <Input placeholder="John Smith" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="initials"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Initials</FormLabel>
-                        <FormControl>
-                          <Input placeholder="JS" maxLength={3} {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="role"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Role</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Senior Technician" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -179,13 +200,21 @@ export default function Team() {
                   />
                   <FormField
                     control={form.control}
-                    name="phone"
+                    name="role"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Phone (Optional)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="+1 (555) 123-4567" {...field} />
-                        </FormControl>
+                        <FormLabel>Role</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a role" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="manager">Manager</SelectItem>
+                            <SelectItem value="admin">Administrator</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -195,7 +224,7 @@ export default function Team() {
                       Cancel
                     </Button>
                     <Button type="submit" className="bg-gradient-accent">
-                      Add Member
+                      Send Invitation
                     </Button>
                   </div>
                 </form>
@@ -204,51 +233,39 @@ export default function Team() {
           </Dialog>
         </div>
 
-        {/* Team Grid */}
-        {loading ? (
-          <div className="text-center py-8">Loading team members...</div>
-        ) : members.length === 0 ? (
+        {/* Invitations List */}
+        {invitations.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            No team members yet. Add your first team member using the button above.
+            No invitations sent yet. Invite your first team member using the button above.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {members.map((member) => (
-              <Card key={member.id} className="shadow-md bg-gradient-card hover:shadow-lg transition-all">
+          <div className="grid gap-4">
+            {invitations.map((invitation) => (
+              <Card key={invitation.id} className="shadow-md bg-gradient-card">
                 <CardContent className="p-6">
-                  <div className="flex items-start gap-4">
-                    <Avatar className="w-16 h-16">
-                      <AvatarFallback className="text-lg bg-primary/10 text-primary font-semibold">
-                        {member.initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-lg text-foreground">{member.name}</h3>
-                      <p className="text-sm text-muted-foreground">{member.role}</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Mail className="w-4 h-4" />
-                      <span className="truncate">{member.email}</span>
-                    </div>
-                    {member.phone && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Phone className="w-4 h-4" />
-                        <span>{member.phone}</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <Avatar className="w-12 h-12">
+                        <AvatarFallback className="bg-primary/10 text-primary">
+                          <Mail className="w-6 h-6" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-semibold text-foreground">{invitation.email}</p>
+                        <p className="text-sm text-muted-foreground capitalize">{invitation.role}</p>
                       </div>
-                    )}
-                  </div>
-
-                  <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Active Tasks</p>
-                      <p className="text-xl font-bold text-warning">{member.active_tasks}</p>
                     </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Completed</p>
-                      <p className="text-xl font-bold text-success">{member.completed_tasks}</p>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">
+                        {invitation.accepted ? (
+                          <span className="text-success">Accepted</span>
+                        ) : (
+                          <span className="text-warning">Pending</span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(invitation.created_at).toLocaleDateString()}
+                      </p>
                     </div>
                   </div>
                 </CardContent>

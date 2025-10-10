@@ -23,8 +23,13 @@ export type Database = {
           created_by: string | null
           description: string | null
           id: string
+          last_maintenance_date: string | null
+          last_maintenance_odometer: number | null
           last_service: string | null
+          maintenance_interval_days: number | null
+          maintenance_interval_km: number | null
           name: string
+          odometer_reading: number | null
           status: Database["public"]["Enums"]["asset_status"]
           updated_at: string
         }
@@ -36,8 +41,13 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          last_maintenance_date?: string | null
+          last_maintenance_odometer?: number | null
           last_service?: string | null
+          maintenance_interval_days?: number | null
+          maintenance_interval_km?: number | null
           name: string
+          odometer_reading?: number | null
           status?: Database["public"]["Enums"]["asset_status"]
           updated_at?: string
         }
@@ -49,8 +59,13 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          last_maintenance_date?: string | null
+          last_maintenance_odometer?: number | null
           last_service?: string | null
+          maintenance_interval_days?: number | null
+          maintenance_interval_km?: number | null
           name?: string
+          odometer_reading?: number | null
           status?: Database["public"]["Enums"]["asset_status"]
           updated_at?: string
         }
@@ -114,6 +129,39 @@ export type Database = {
           },
         ]
       }
+      invitations: {
+        Row: {
+          accepted: boolean | null
+          created_at: string | null
+          email: string
+          expires_at: string | null
+          id: string
+          invited_by: string
+          role: Database["public"]["Enums"]["app_role"]
+          token: string
+        }
+        Insert: {
+          accepted?: boolean | null
+          created_at?: string | null
+          email: string
+          expires_at?: string | null
+          id?: string
+          invited_by: string
+          role?: Database["public"]["Enums"]["app_role"]
+          token: string
+        }
+        Update: {
+          accepted?: boolean | null
+          created_at?: string | null
+          email?: string
+          expires_at?: string | null
+          id?: string
+          invited_by?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          token?: string
+        }
+        Relationships: []
+      }
       maintenance_schedules: {
         Row: {
           asset_id: string
@@ -167,6 +215,10 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          invitation_accepted: boolean | null
+          invitation_token: string | null
+          invited_at: string | null
+          invited_by: string | null
           updated_at: string
         }
         Insert: {
@@ -174,6 +226,10 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
+          invitation_accepted?: boolean | null
+          invitation_token?: string | null
+          invited_at?: string | null
+          invited_by?: string | null
           updated_at?: string
         }
         Update: {
@@ -181,6 +237,10 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          invitation_accepted?: boolean | null
+          invitation_token?: string | null
+          invited_at?: string | null
+          invited_by?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -316,7 +376,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "supervisor" | "technician"
+      app_role: "admin" | "supervisor" | "technician" | "manager"
       asset_category: "Vehicles" | "Equipment" | "Tools" | "Facilities"
       asset_status: "Active" | "Maintenance" | "Inactive"
       task_priority: "Low" | "Medium" | "High" | "Urgent"
@@ -448,7 +508,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "supervisor", "technician"],
+      app_role: ["admin", "supervisor", "technician", "manager"],
       asset_category: ["Vehicles", "Equipment", "Tools", "Facilities"],
       asset_status: ["Active", "Maintenance", "Inactive"],
       task_priority: ["Low", "Medium", "High", "Urgent"],

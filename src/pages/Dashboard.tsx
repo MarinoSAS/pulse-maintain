@@ -3,6 +3,7 @@ import { StatCard } from "@/components/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Package, AlertCircle, CheckCircle, Clock, Wrench, TrendingUp } from "lucide-react";
+import { MaintenanceAlerts } from "@/components/MaintenanceAlerts";
 
 export default function Dashboard() {
   const upcomingMaintenance = [
@@ -60,6 +61,9 @@ export default function Dashboard() {
             variant="accent"
           />
         </div>
+
+        {/* Maintenance Alerts */}
+        <MaintenanceAlerts />
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
