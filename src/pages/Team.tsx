@@ -110,13 +110,28 @@ export default function Team() {
         email: values.email,
       });
 
-      // In production, you would send this via email
+      // Generate invite link
       const inviteLink = `${window.location.origin}/accept-invitation?token=${token}`;
       
-      toast.success("Invitation created! Share this link with the user:", {
-        description: inviteLink,
-        duration: 10000,
+      // Send invitation email
+      const { error: emailError } = await supabase.functions.invoke('send-invitation', {
+        body: {
+          email: values.email,
+          role: values.role === 'admin' ? 'Administrator' : 'Manager',
+          inviteLink,
+          inviterName: user.user_metadata?.full_name || user.email || 'Team Admin',
+        },
       });
+
+      if (emailError) {
+        console.error("Failed to send email:", emailError);
+        toast.error("Invitation created but email failed to send. Share this link manually:", {
+          description: inviteLink,
+          duration: 10000,
+        });
+      } else {
+        toast.success(`Invitation sent to ${values.email}!`);
+      }
 
       form.reset();
       setOpen(false);
