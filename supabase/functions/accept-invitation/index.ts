@@ -62,29 +62,69 @@ serve(async (req) => {
     // Generate unique email from phone number
     const generatedEmail = `${phoneNumber.replace(/[^0-9]/g, '')}@maintenancepro.local`;
 
-    console.log('Creating user with email:', generatedEmail);
+    console.log('Checking for existing user with email:', generatedEmail);
 
-    // Create user account with admin privileges
-    const { data: authData, error: signUpError } = await supabaseAdmin.auth.admin.createUser({
-      email: generatedEmail,
-      password: password,
-      email_confirm: true, // Auto-confirm email
-      user_metadata: {
-        full_name: invitation.invitee_name,
-        phone_number: phoneNumber,
-      },
-    });
-
-    if (signUpError) {
-      console.error('Error creating user:', signUpError);
-      throw signUpError;
+    // Check if user already exists
+    const { data: existingUsers, error: listUsersError } = await supabaseAdmin.auth.admin.listUsers();
+    
+    if (listUsersError) {
+      console.error('Error checking for existing users:', listUsersError);
+      throw listUsersError;
     }
 
-    if (!authData.user) {
-      throw new Error('No user returned from createUser');
-    }
+    const existingUser = existingUsers.users.find(u => u.email === generatedEmail);
+    let userId: string;
 
-    console.log('User created successfully:', authData.user.id);
+    if (existingUser) {
+      console.log('User already exists:', existingUser.id);
+      
+      // Check if this specific invitation was already accepted
+      const { data: existingInvitation, error: checkInvError } = await supabaseAdmin
+        .from('invitations')
+        .select('accepted')
+        .eq('token', token)
+        .single();
+
+      if (checkInvError) {
+        console.error('Error checking invitation status:', checkInvError);
+      }
+
+      if (existingInvitation?.accepted) {
+        console.log('Invitation already accepted');
+        return new Response(
+          JSON.stringify({ error: 'This invitation has already been used' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      userId = existingUser.id;
+      console.log('Using existing user, will update role and team member');
+    } else {
+      console.log('Creating new user with email:', generatedEmail);
+
+      // Create user account with admin privileges
+      const { data: authData, error: signUpError } = await supabaseAdmin.auth.admin.createUser({
+        email: generatedEmail,
+        password: password,
+        email_confirm: true, // Auto-confirm email
+        user_metadata: {
+          full_name: invitation.invitee_name,
+          phone_number: phoneNumber,
+        },
+      });
+
+      if (signUpError) {
+        console.error('Error creating user:', signUpError);
+        throw signUpError;
+      }
+
+      if (!authData.user) {
+        throw new Error('No user returned from createUser');
+      }
+
+      userId = authData.user.id;
+      console.log('User created successfully:', userId);
+    }
 
     // Update team member with phone number and email
     const { error: teamMemberError } = await supabaseAdmin
@@ -99,12 +139,14 @@ serve(async (req) => {
       console.error('Error updating team member:', teamMemberError);
     }
 
-    // Assign the role to the user
+    // Assign or update the role for the user
     const { error: roleError } = await supabaseAdmin
       .from('user_roles')
-      .insert({
-        user_id: authData.user.id,
+      .upsert({
+        user_id: userId,
         role: invitation.role,
+      }, {
+        onConflict: 'user_id,role'
       });
 
     if (roleError) {

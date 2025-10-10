@@ -95,10 +95,18 @@ export default function AcceptInvitation() {
 
       if (signInError) throw signInError;
 
-      toast.success("Account created successfully! Welcome!");
+      toast.success("Welcome! Your account is ready.");
       navigate("/");
     } catch (error: any) {
-      toast.error(error.message || "Failed to create account");
+      const errorMessage = error.message || "Failed to create account";
+      
+      if (errorMessage.includes("already been used")) {
+        toast.error("This invitation has already been accepted");
+      } else if (errorMessage.includes("expired")) {
+        toast.error("This invitation has expired");
+      } else {
+        toast.error(errorMessage);
+      }
     }
   };
 
