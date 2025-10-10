@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Assets from "./pages/Assets";
+import NewAsset from "./pages/NewAsset";
 import Tasks from "./pages/Tasks";
 import Maintenance from "./pages/Maintenance";
 import Expenses from "./pages/Expenses";
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/accept-invitation" element={<AcceptInvitation />} />
           <Route path="/" element={<Dashboard />} />
           <Route path="/assets" element={<Assets />} />
+          <Route path="/assets/new" element={<NewAsset />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/maintenance" element={<Maintenance />} />
           <Route path="/expenses" element={<Expenses />} />

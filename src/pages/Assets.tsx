@@ -4,35 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Truck, Package, Wrench, Building2, Plus } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 const assetCategories = [
   { name: "Vehicles", count: 0, icon: Truck, color: "bg-primary/10 text-primary" },
@@ -40,31 +14,6 @@ const assetCategories = [
   { name: "Tools", count: 0, icon: Wrench, color: "bg-success/10 text-success" },
   { name: "Facilities", count: 0, icon: Building2, color: "bg-warning/10 text-warning" },
 ];
-
-const recentAssets = [
-  { id: "FL-001", name: "Forklift Toyota 7FBR", category: "Equipment", status: "Active", lastService: "2025-09-15" },
-  { id: "V-003", name: "Delivery Van Ford Transit", category: "Vehicles", status: "Active", lastService: "2025-09-20" },
-  { id: "HL-005", name: "Hand Lift Crown PTH", category: "Equipment", status: "Maintenance", lastService: "2025-08-30" },
-  { id: "CR-A", name: "Cold Room A", category: "Facilities", status: "Active", lastService: "2025-09-10" },
-  { id: "OFF-201", name: "Office Suite 201", category: "Facilities", status: "Active", lastService: "2025-09-05" },
-];
-
-const assetFormSchema = z.object({
-  assetId: z.string().min(1, "Asset ID is required").max(50, "Asset ID too long"),
-  name: z.string().min(1, "Asset name is required").max(100, "Asset name too long"),
-  description: z.string().max(500, "Description too long").optional(),
-  category: z.enum(["Vehicles", "Equipment", "Tools", "Facilities"], {
-    required_error: "Please select a category",
-  }),
-  assignedTo: z.string().optional(),
-  status: z.enum(["Active", "Maintenance", "Inactive"], {
-    required_error: "Please select a status",
-  }),
-  lastService: z.string().optional(),
-  odometerReading: z.string().optional(),
-  maintenanceIntervalDays: z.string().optional(),
-  maintenanceIntervalKm: z.string().optional(),
-});
 
 type Asset = {
   id: string;
@@ -84,9 +33,8 @@ type Asset = {
 };
 
 export default function Assets() {
-  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoryCounts, setCategoryCounts] = useState({
     Vehicles: 0,
@@ -94,24 +42,9 @@ export default function Assets() {
     Tools: 0,
     Facilities: 0,
   });
-  
-  const form = useForm<z.infer<typeof assetFormSchema>>({
-    resolver: zodResolver(assetFormSchema),
-    defaultValues: {
-      assetId: "",
-      name: "",
-      description: "",
-      status: "Active",
-      assignedTo: "",
-      lastService: "",
-    },
-  });
-
-  const selectedCategory = form.watch("category");
 
   useEffect(() => {
     loadAssets();
-    loadTeamMembers();
   }, []);
 
   const loadAssets = async () => {
@@ -141,48 +74,6 @@ export default function Assets() {
     }
   };
 
-  const loadTeamMembers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("team_members")
-        .select("*")
-        .order("name");
-
-      if (error) throw error;
-      setTeamMembers(data || []);
-    } catch (error: any) {
-      console.error("Failed to load team members:", error);
-    }
-  };
-
-  const onSubmit = async (values: z.infer<typeof assetFormSchema>) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      const { error } = await supabase.from("assets").insert({
-        asset_id: values.assetId,
-        name: values.name,
-        description: values.description || null,
-        category: values.category,
-        status: values.status,
-        assigned_to: values.assignedTo || null,
-        last_service: values.lastService || null,
-        odometer_reading: values.odometerReading ? parseInt(values.odometerReading) : null,
-        maintenance_interval_days: values.maintenanceIntervalDays ? parseInt(values.maintenanceIntervalDays) : null,
-        maintenance_interval_km: values.maintenanceIntervalKm ? parseInt(values.maintenanceIntervalKm) : null,
-        created_by: user?.id,
-      });
-
-      if (error) throw error;
-      
-      toast.success("Asset added successfully!");
-      form.reset();
-      setOpen(false);
-      loadAssets();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to add asset");
-    }
-  };
 
   return (
     <Layout>
@@ -192,212 +83,13 @@ export default function Assets() {
             <h1 className="text-4xl font-bold text-foreground">Asset Registry</h1>
             <p className="text-muted-foreground mt-1">Manage your fleet and equipment</p>
           </div>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-gradient-accent shadow-md hover:shadow-lg">
-                <Plus className="w-4 h-4 mr-2" />
-                New Asset
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>Add New Asset</DialogTitle>
-                <DialogDescription>
-                  Enter the details of the new asset. Click save when you're done.
-                </DialogDescription>
-              </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="assetId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Asset ID</FormLabel>
-                        <FormControl>
-                          <Input placeholder="FL-001" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Asset Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Forklift Toyota 7FBR" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description (Optional)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Asset description or notes" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Category</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a category" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Vehicles">Vehicles</SelectItem>
-                            <SelectItem value="Equipment">Equipment</SelectItem>
-                            <SelectItem value="Tools">Tools</SelectItem>
-                            <SelectItem value="Facilities">Facilities</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  {selectedCategory && selectedCategory !== "Facilities" && (
-                    <FormField
-                      control={form.control}
-                      name="assignedTo"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Assigned To (Optional)</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select team member" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {teamMembers.map((member) => (
-                                <SelectItem key={member.id} value={member.name}>
-                                  {member.name} - {member.role}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  )}
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Status</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Active">Active</SelectItem>
-                            <SelectItem value="Maintenance">Maintenance</SelectItem>
-                            <SelectItem value="Inactive">Inactive</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="lastService"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Last Service Date (Optional)</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  {/* Maintenance Configuration */}
-                  {selectedCategory && selectedCategory !== "Facilities" && (
-                    <>
-                      <div className="pt-4 border-t">
-                        <h3 className="font-semibold mb-4">Maintenance Schedule</h3>
-                        <div className="space-y-4">
-                          {selectedCategory === "Vehicles" && (
-                            <FormField
-                              control={form.control}
-                              name="odometerReading"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Current Odometer (km)</FormLabel>
-                                  <FormControl>
-                                    <Input type="number" placeholder="25000" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                          <FormField
-                            control={form.control}
-                            name="maintenanceIntervalDays"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Service Interval (days)</FormLabel>
-                                <FormControl>
-                                  <Input type="number" placeholder="180" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          {selectedCategory === "Vehicles" && (
-                            <FormField
-                              control={form.control}
-                              name="maintenanceIntervalKm"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Service Interval (km)</FormLabel>
-                                  <FormControl>
-                                    <Input type="number" placeholder="5000" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                  
-                  <div className="flex justify-end gap-3 pt-4">
-                    <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" className="bg-gradient-accent">
-                      Add Asset
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
+          <Button 
+            className="bg-gradient-accent shadow-md hover:shadow-lg"
+            onClick={() => navigate("/assets/new")}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            New Asset
+          </Button>
         </div>
 
         {/* Category Cards */}
