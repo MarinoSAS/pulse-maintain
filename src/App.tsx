@@ -20,6 +20,7 @@ import Auth from "./pages/Auth";
 import AcceptInvitation from "./pages/AcceptInvitation";
 import AssetApprovals from "./pages/AssetApprovals";
 import VendorApprovals from "./pages/VendorApprovals";
+import SetupAdmin from "./pages/SetupAdmin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={<Auth />} />
+          <Route path="/setup-admin" element={<SetupAdmin />} />
           <Route path="/accept-invitation" element={<AcceptInvitation />} />
           <Route path="/" element={<Dashboard />} />
           <Route path="/assets" element={<Assets />} />
