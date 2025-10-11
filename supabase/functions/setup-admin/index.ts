@@ -50,14 +50,13 @@ serve(async (req) => {
     if (createError) throw createError;
     if (!newUser.user) throw new Error("Failed to create user");
 
-    // Create profile
+    // Profile is created automatically by trigger, just update it
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
-      .insert({
-        id: newUser.user.id,
-        email: phoneEmail,
+      .update({
         full_name: "Administrator"
-      });
+      })
+      .eq('id', newUser.user.id);
 
     if (profileError) throw profileError;
 
