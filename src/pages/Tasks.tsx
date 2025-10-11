@@ -52,7 +52,7 @@ import * as z from "zod";
 const taskSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
-  priority: z.enum(["Low", "Medium", "High", "Critical"]),
+  priority: z.enum(["Low", "Medium", "High", "Urgent"]),
   assignedTo: z.string().optional(),
   dueDate: z.string().optional(),
   assetId: z.string().optional(),
@@ -249,7 +249,7 @@ export default function Tasks() {
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case "Critical": return "destructive";
+      case "Urgent": return "destructive";
       case "High": return "destructive";
       case "Medium": return "default";
       default: return "secondary";
@@ -496,7 +496,7 @@ export default function Tasks() {
                             <SelectItem value="Low">Low</SelectItem>
                             <SelectItem value="Medium">Medium</SelectItem>
                             <SelectItem value="High">High</SelectItem>
-                            <SelectItem value="Critical">Critical</SelectItem>
+                            <SelectItem value="Urgent">Urgent</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
