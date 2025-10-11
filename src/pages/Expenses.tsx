@@ -6,43 +6,7 @@ import { DollarSign, Plus, TrendingUp } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-
-const expenseSchema = z.object({
-  assetId: z.string().min(1, "Please select an asset"),
-  description: z.string().min(1, "Description is required"),
-  amount: z.string().min(1, "Amount is required"),
-  category: z.string().min(1, "Category is required"),
-  date: z.string().min(1, "Date is required"),
-  invoiceNumber: z.string().optional(),
-  vendor: z.string().optional(),
-});
+import { useNavigate } from "react-router-dom";
 
 type Expense = {
   id: string;
@@ -56,27 +20,12 @@ type Expense = {
 };
 
 export default function Expenses() {
-  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const form = useForm<z.infer<typeof expenseSchema>>({
-    resolver: zodResolver(expenseSchema),
-    defaultValues: {
-      assetId: "",
-      description: "",
-      amount: "",
-      category: "",
-      date: "",
-      invoiceNumber: "",
-      vendor: "",
-    },
-  });
 
   useEffect(() => {
     loadExpenses();
-    loadAssets();
   }, []);
 
   const loadExpenses = async () => {
@@ -98,45 +47,6 @@ export default function Expenses() {
     }
   };
 
-  const loadAssets = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("assets")
-        .select("*")
-        .order("name");
-
-      if (error) throw error;
-      setAssets(data || []);
-    } catch (error: any) {
-      console.error("Failed to load assets:", error);
-    }
-  };
-
-  const onSubmit = async (values: z.infer<typeof expenseSchema>) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      const { error } = await supabase.from("expenses").insert({
-        asset_id: values.assetId,
-        description: values.description,
-        amount: parseFloat(values.amount),
-        category: values.category,
-        date: values.date,
-        invoice_number: values.invoiceNumber || null,
-        vendor: values.vendor || null,
-        created_by: user?.id,
-      });
-
-      if (error) throw error;
-
-      toast.success("Expense added successfully!");
-      form.reset();
-      setOpen(false);
-      loadExpenses();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to add expense");
-    }
-  };
 
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
   const avgExpense = expenses.length > 0 ? totalExpenses / expenses.length : 0;
@@ -150,145 +60,13 @@ export default function Expenses() {
             <h1 className="text-4xl font-bold text-foreground">Expense Tracking</h1>
             <p className="text-muted-foreground mt-1">Monitor maintenance costs and invoices</p>
           </div>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-gradient-accent shadow-md hover:shadow-lg">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Expense
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add Expense</DialogTitle>
-                <DialogDescription>Record a new maintenance expense</DialogDescription>
-              </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="assetId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Asset</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select asset" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {assets.map((asset) => (
-                              <SelectItem key={asset.id} value={asset.id}>
-                                {asset.name} ({asset.asset_id})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Brake pad replacement" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="amount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Amount</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.01" placeholder="450.00" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Category</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select category" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Repair">Repair</SelectItem>
-                            <SelectItem value="Maintenance">Maintenance</SelectItem>
-                            <SelectItem value="Parts">Parts</SelectItem>
-                            <SelectItem value="Service">Service</SelectItem>
-                            <SelectItem value="Other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="date"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Date</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="invoiceNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Invoice Number (Optional)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="INV-2025-001" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="vendor"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Vendor (Optional)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Auto Parts Co." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="flex justify-end gap-3 pt-4">
-                    <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" className="bg-gradient-accent">
-                      Add Expense
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
+          <Button 
+            onClick={() => navigate("/expenses/new")}
+            className="bg-gradient-accent shadow-md hover:shadow-lg"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Expense
+          </Button>
         </div>
 
         {/* Summary Cards */}

@@ -10,6 +10,10 @@ import NewAsset from "./pages/NewAsset";
 import Tasks from "./pages/Tasks";
 import Maintenance from "./pages/Maintenance";
 import Expenses from "./pages/Expenses";
+import NewExpense from "./pages/NewExpense";
+import Vendors from "./pages/Vendors";
+import NewVendor from "./pages/NewVendor";
+import VendorDetail from "./pages/VendorDetail";
 import Team from "./pages/Team";
 import Auth from "./pages/Auth";
 import AcceptInvitation from "./pages/AcceptInvitation";
@@ -33,6 +37,10 @@ const App = () => (
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/maintenance" element={<Maintenance />} />
           <Route path="/expenses" element={<Expenses />} />
+          <Route path="/expenses/new" element={<NewExpense />} />
+          <Route path="/vendors" element={<Vendors />} />
+          <Route path="/vendors/new" element={<NewVendor />} />
+          <Route path="/vendors/:id" element={<VendorDetail />} />
           <Route path="/team" element={<Team />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

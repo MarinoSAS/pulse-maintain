@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Package, ClipboardList, Calendar, DollarSign, Users, LogOut } from "lucide-react";
+import { Home, Package, ClipboardList, Calendar, DollarSign, Users, LogOut, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -10,6 +10,7 @@ const navigation = [
   { name: "Tasks", href: "/tasks", icon: ClipboardList },
   { name: "Maintenance", href: "/maintenance", icon: Calendar },
   { name: "Expenses", href: "/expenses", icon: DollarSign },
+  { name: "Vendors", href: "/vendors", icon: Store },
   { name: "Team", href: "/team", icon: Users },
 ];
 

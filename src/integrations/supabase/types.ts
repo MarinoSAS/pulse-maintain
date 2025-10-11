@@ -92,6 +92,7 @@ export type Database = {
           invoice_number: string | null
           updated_at: string
           vendor: string | null
+          vendor_id: string | null
         }
         Insert: {
           amount: number
@@ -105,6 +106,7 @@ export type Database = {
           invoice_number?: string | null
           updated_at?: string
           vendor?: string | null
+          vendor_id?: string | null
         }
         Update: {
           amount?: number
@@ -118,6 +120,7 @@ export type Database = {
           invoice_number?: string | null
           updated_at?: string
           vendor?: string | null
+          vendor_id?: string | null
         }
         Relationships: [
           {
@@ -125,6 +128,13 @@ export type Database = {
             columns: ["asset_id"]
             isOneToOne: false
             referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
             referencedColumns: ["id"]
           },
         ]
@@ -368,6 +378,45 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      vendors: {
+        Row: {
+          address: string | null
+          contact_person: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          contact_person?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          contact_person?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
