@@ -8,6 +8,7 @@ import Assets from "./pages/Assets";
 import AssetDetail from "./pages/AssetDetail";
 import NewAsset from "./pages/NewAsset";
 import Tasks from "./pages/Tasks";
+import TaskApprovals from "./pages/TaskApprovals";
 import Maintenance from "./pages/Maintenance";
 import Expenses from "./pages/Expenses";
 import NewExpense from "./pages/NewExpense";
@@ -35,6 +36,7 @@ const App = () => (
           <Route path="/assets/:id" element={<AssetDetail />} />
           <Route path="/assets/new" element={<NewAsset />} />
           <Route path="/tasks" element={<Tasks />} />
+          <Route path="/tasks/approvals" element={<TaskApprovals />} />
           <Route path="/maintenance" element={<Maintenance />} />
           <Route path="/expenses" element={<Expenses />} />
           <Route path="/expenses/new" element={<NewExpense />} />

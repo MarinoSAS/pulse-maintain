@@ -1,5 +1,6 @@
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -41,6 +42,10 @@ const expenseSchema = z.object({
     .or(z.literal("")),
   vendorId: z.string().optional(),
   description: z.string().max(500, "Description too long").optional(),
+  maintenanceCategory: z.string().optional(),
+  odometerAtService: z.string().optional(),
+  nextServiceIntervalDays: z.string().optional(),
+  nextServiceIntervalKm: z.string().optional(),
 });
 
 export default function NewExpense() {
@@ -59,8 +64,15 @@ export default function NewExpense() {
       invoiceNumber: "",
       vendorId: "",
       description: "",
+      maintenanceCategory: "",
+      odometerAtService: "",
+      nextServiceIntervalDays: "",
+      nextServiceIntervalKm: "",
     },
   });
+
+  const serviceType = form.watch("serviceType");
+  const isMaintenanceService = ["Service", "Oil Change", "MOT", "Tachograph", "Speed Limiter", "Repair"].includes(serviceType);
 
   useEffect(() => {
     loadAssets();
@@ -100,7 +112,7 @@ export default function NewExpense() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
-      const { error } = await supabase.from("expenses").insert({
+      const expenseData: any = {
         asset_id: values.assetId,
         category: values.serviceType,
         amount: parseFloat(values.cost),
@@ -109,9 +121,32 @@ export default function NewExpense() {
         vendor_id: values.vendorId || null,
         description: values.description || null,
         created_by: user?.id,
-      });
+      };
+
+      // Add maintenance metadata if provided
+      if (values.maintenanceCategory) {
+        expenseData.maintenance_category = values.maintenanceCategory;
+      }
+      if (values.odometerAtService) {
+        expenseData.odometer_at_service = parseInt(values.odometerAtService);
+      }
+      if (values.nextServiceIntervalDays) {
+        expenseData.next_service_interval_days = parseInt(values.nextServiceIntervalDays);
+      }
+      if (values.nextServiceIntervalKm) {
+        expenseData.next_service_interval_km = parseInt(values.nextServiceIntervalKm);
+      }
+
+      const { data: expense, error } = await supabase.from("expenses").insert(expenseData).select().single();
 
       if (error) throw error;
+
+      // Call edge function to auto-schedule maintenance if metadata provided
+      if (values.maintenanceCategory && (values.nextServiceIntervalDays || values.nextServiceIntervalKm)) {
+        await supabase.functions.invoke('auto-schedule-maintenance', {
+          body: { expenseId: expense.id }
+        });
+      }
       
       toast.success("Expense recorded successfully!");
       navigate("/expenses");
@@ -179,11 +214,14 @@ export default function NewExpense() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value="Service">Service</SelectItem>
                         <SelectItem value="Oil Change">Oil Change</SelectItem>
+                        <SelectItem value="MOT">MOT</SelectItem>
+                        <SelectItem value="Tachograph">Tachograph</SelectItem>
+                        <SelectItem value="Speed Limiter">Speed Limiter</SelectItem>
+                        <SelectItem value="Repair">Repair</SelectItem>
                         <SelectItem value="Brake Service">Brake Service</SelectItem>
                         <SelectItem value="Tire Replacement">Tire Replacement</SelectItem>
-                        <SelectItem value="Engine Repair">Engine Repair</SelectItem>
-                        <SelectItem value="Routine Maintenance">Routine Maintenance</SelectItem>
                         <SelectItem value="Parts Replacement">Parts Replacement</SelectItem>
                         <SelectItem value="Inspection">Inspection</SelectItem>
                         <SelectItem value="Other">Other</SelectItem>
@@ -278,6 +316,90 @@ export default function NewExpense() {
                   </FormItem>
                 )}
               />
+
+              {isMaintenanceService && (
+                <div className="space-y-6 p-6 border border-primary/20 rounded-lg bg-primary/5">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-lg">Automatic Maintenance Scheduling</h3>
+                    <Badge variant="secondary">Optional</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Set service intervals to automatically schedule the next maintenance. Service will be due when either time OR kilometer interval is reached (whichever comes first).
+                  </p>
+
+                  <FormField
+                    control={form.control}
+                    name="maintenanceCategory"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Maintenance Category</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Service">Service</SelectItem>
+                            <SelectItem value="Oil Change">Oil Change</SelectItem>
+                            <SelectItem value="MOT">MOT</SelectItem>
+                            <SelectItem value="Tachograph">Tachograph</SelectItem>
+                            <SelectItem value="Speed Limiter">Speed Limiter</SelectItem>
+                            <SelectItem value="Repair">Repair</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="odometerAtService"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Odometer at Service (km)</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="e.g., 50000" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="nextServiceIntervalDays"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Next Service Interval (Days)</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="e.g., 365 for 1 year" {...field} />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">365 days = 1 year</p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="nextServiceIntervalKm"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Next Service Interval (km)</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="e.g., 100000" {...field} />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">100,000 km</p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+              )}
             </form>
           </Form>
         </div>

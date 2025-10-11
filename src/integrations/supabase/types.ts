@@ -90,6 +90,12 @@ export type Database = {
           description: string | null
           id: string
           invoice_number: string | null
+          maintenance_category:
+            | Database["public"]["Enums"]["maintenance_type_enum"]
+            | null
+          next_service_interval_days: number | null
+          next_service_interval_km: number | null
+          odometer_at_service: number | null
           updated_at: string
           vendor: string | null
           vendor_id: string | null
@@ -104,6 +110,12 @@ export type Database = {
           description?: string | null
           id?: string
           invoice_number?: string | null
+          maintenance_category?:
+            | Database["public"]["Enums"]["maintenance_type_enum"]
+            | null
+          next_service_interval_days?: number | null
+          next_service_interval_km?: number | null
+          odometer_at_service?: number | null
           updated_at?: string
           vendor?: string | null
           vendor_id?: string | null
@@ -118,6 +130,12 @@ export type Database = {
           description?: string | null
           id?: string
           invoice_number?: string | null
+          maintenance_category?:
+            | Database["public"]["Enums"]["maintenance_type_enum"]
+            | null
+          next_service_interval_days?: number | null
+          next_service_interval_km?: number | null
+          odometer_at_service?: number | null
           updated_at?: string
           vendor?: string | null
           vendor_id?: string | null
@@ -178,38 +196,62 @@ export type Database = {
       maintenance_schedules: {
         Row: {
           asset_id: string
+          auto_generated: boolean | null
           completed: boolean | null
           completed_date: string | null
           created_at: string
           created_by: string | null
+          due_by_date: string | null
+          due_by_odometer: number | null
           id: string
+          maintenance_category:
+            | Database["public"]["Enums"]["maintenance_type_enum"]
+            | null
           maintenance_type: string
           notes: string | null
           scheduled_date: string
+          source_expense_id: string | null
+          triggered_by: string | null
           updated_at: string
         }
         Insert: {
           asset_id: string
+          auto_generated?: boolean | null
           completed?: boolean | null
           completed_date?: string | null
           created_at?: string
           created_by?: string | null
+          due_by_date?: string | null
+          due_by_odometer?: number | null
           id?: string
+          maintenance_category?:
+            | Database["public"]["Enums"]["maintenance_type_enum"]
+            | null
           maintenance_type: string
           notes?: string | null
           scheduled_date: string
+          source_expense_id?: string | null
+          triggered_by?: string | null
           updated_at?: string
         }
         Update: {
           asset_id?: string
+          auto_generated?: boolean | null
           completed?: boolean | null
           completed_date?: string | null
           created_at?: string
           created_by?: string | null
+          due_by_date?: string | null
+          due_by_odometer?: number | null
           id?: string
+          maintenance_category?:
+            | Database["public"]["Enums"]["maintenance_type_enum"]
+            | null
           maintenance_type?: string
           notes?: string | null
           scheduled_date?: string
+          source_expense_id?: string | null
+          triggered_by?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -218,6 +260,13 @@ export type Database = {
             columns: ["asset_id"]
             isOneToOne: false
             referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_schedules_source_expense_id_fkey"
+            columns: ["source_expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
             referencedColumns: ["id"]
           },
         ]
@@ -260,6 +309,9 @@ export type Database = {
       }
       tasks: {
         Row: {
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
           asset_id: string | null
           assigned_to: string | null
           created_at: string
@@ -267,12 +319,17 @@ export type Database = {
           description: string | null
           due_date: string | null
           id: string
+          is_issue_report: boolean | null
           priority: Database["public"]["Enums"]["task_priority"]
+          rejection_reason: string | null
           status: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at: string
         }
         Insert: {
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           asset_id?: string | null
           assigned_to?: string | null
           created_at?: string
@@ -280,12 +337,17 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          is_issue_report?: boolean | null
           priority?: Database["public"]["Enums"]["task_priority"]
+          rejection_reason?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at?: string
         }
         Update: {
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           asset_id?: string | null
           assigned_to?: string | null
           created_at?: string
@@ -293,7 +355,9 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          is_issue_report?: boolean | null
           priority?: Database["public"]["Enums"]["task_priority"]
+          rejection_reason?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title?: string
           updated_at?: string
@@ -441,6 +505,13 @@ export type Database = {
       app_role: "admin" | "supervisor" | "technician" | "manager"
       asset_category: "Vehicles" | "Equipment" | "Tools" | "Facilities"
       asset_status: "Active" | "Maintenance" | "Inactive"
+      maintenance_type_enum:
+        | "Service"
+        | "Oil Change"
+        | "MOT"
+        | "Tachograph"
+        | "Speed Limiter"
+        | "Repair"
       task_priority: "Low" | "Medium" | "High" | "Urgent"
       task_status: "To Do" | "In Progress" | "Done"
     }
@@ -573,6 +644,14 @@ export const Constants = {
       app_role: ["admin", "supervisor", "technician", "manager"],
       asset_category: ["Vehicles", "Equipment", "Tools", "Facilities"],
       asset_status: ["Active", "Maintenance", "Inactive"],
+      maintenance_type_enum: [
+        "Service",
+        "Oil Change",
+        "MOT",
+        "Tachograph",
+        "Speed Limiter",
+        "Repair",
+      ],
       task_priority: ["Low", "Medium", "High", "Urgent"],
       task_status: ["To Do", "In Progress", "Done"],
     },

@@ -36,51 +36,73 @@ export function MaintenanceAlerts() {
       const today = new Date();
 
       assets?.forEach((asset) => {
+        let daysUntilDue: number | null = null;
+        let kmUntilDue: number | null = null;
+        let daysPart = '';
+        let kmPart = '';
+
         // Check time-based maintenance
         if (asset.maintenance_interval_days && asset.last_maintenance_date) {
           const lastMaintenance = new Date(asset.last_maintenance_date);
           const daysSinceMaintenance = differenceInDays(today, lastMaintenance);
-          const daysUntilDue = asset.maintenance_interval_days - daysSinceMaintenance;
+          daysUntilDue = asset.maintenance_interval_days - daysSinceMaintenance;
 
           if (daysUntilDue < 0) {
-            newAlerts.push({
-              asset_id: asset.asset_id,
-              asset_name: asset.name,
-              alert_type: 'overdue',
-              message: `Maintenance overdue by ${Math.abs(daysUntilDue)} days`,
-              days_overdue: Math.abs(daysUntilDue),
-            });
+            daysPart = `${Math.abs(daysUntilDue)} days overdue`;
           } else if (daysUntilDue <= 14) {
-            newAlerts.push({
-              asset_id: asset.asset_id,
-              asset_name: asset.name,
-              alert_type: 'due_soon',
-              message: `Maintenance due in ${daysUntilDue} days`,
-            });
+            const weeks = Math.floor(daysUntilDue / 7);
+            const days = daysUntilDue % 7;
+            if (weeks > 0) {
+              daysPart = `${weeks} week${weeks > 1 ? 's' : ''}${days > 0 ? ` ${days} day${days > 1 ? 's' : ''}` : ''}`;
+            } else {
+              daysPart = `${daysUntilDue} day${daysUntilDue !== 1 ? 's' : ''}`;
+            }
           }
         }
 
         // Check odometer-based maintenance for vehicles
         if (asset.maintenance_interval_km && asset.odometer_reading && asset.last_maintenance_odometer) {
-          const kmSinceMaintenence = asset.odometer_reading - asset.last_maintenance_odometer;
-          const kmUntilDue = asset.maintenance_interval_km - kmSinceMaintenence;
+          const kmSinceMaintenance = asset.odometer_reading - asset.last_maintenance_odometer;
+          kmUntilDue = asset.maintenance_interval_km - kmSinceMaintenance;
 
           if (kmUntilDue < 0) {
-            newAlerts.push({
-              asset_id: asset.asset_id,
-              asset_name: asset.name,
-              alert_type: 'km_threshold',
-              message: `Maintenance overdue by ${Math.abs(kmUntilDue)} km`,
-              km_over: Math.abs(kmUntilDue),
-            });
+            kmPart = `${Math.abs(kmUntilDue).toLocaleString()} km overdue`;
           } else if (kmUntilDue <= 1000) {
-            newAlerts.push({
-              asset_id: asset.asset_id,
-              asset_name: asset.name,
-              alert_type: 'due_soon',
-              message: `Maintenance due in ${kmUntilDue} km`,
-            });
+            kmPart = `${kmUntilDue.toLocaleString()} km`;
           }
+        }
+
+        // Determine if we should show an alert (either condition met)
+        const showTimeAlert = daysUntilDue !== null && (daysUntilDue < 0 || daysUntilDue <= 14);
+        const showKmAlert = kmUntilDue !== null && (kmUntilDue < 0 || kmUntilDue <= 1000);
+
+        if (showTimeAlert || showKmAlert) {
+          const isOverdue = (daysUntilDue !== null && daysUntilDue < 0) || (kmUntilDue !== null && kmUntilDue < 0);
+          
+          // Build combined message
+          let message = 'Service due';
+          if (daysPart && kmPart) {
+            message = isOverdue 
+              ? `Maintenance ${daysPart} or ${kmPart}`
+              : `Service due in ${daysPart} or ${kmPart}`;
+          } else if (daysPart) {
+            message = isOverdue 
+              ? `Maintenance ${daysPart}`
+              : `Service due in ${daysPart}`;
+          } else if (kmPart) {
+            message = isOverdue 
+              ? `Maintenance ${kmPart}`
+              : `Service due in ${kmPart}`;
+          }
+
+          newAlerts.push({
+            asset_id: asset.asset_id,
+            asset_name: asset.name,
+            alert_type: isOverdue ? 'overdue' : 'due_soon',
+            message,
+            days_overdue: daysUntilDue !== null && daysUntilDue < 0 ? Math.abs(daysUntilDue) : undefined,
+            km_over: kmUntilDue !== null && kmUntilDue < 0 ? Math.abs(kmUntilDue) : undefined,
+          });
         }
       });
 
