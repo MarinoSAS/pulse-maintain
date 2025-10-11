@@ -2,11 +2,23 @@ import { Layout } from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, Plus, TrendingUp } from "lucide-react";
+import { DollarSign, Plus, TrendingUp, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { useUserRole } from "@/hooks/useUserRole";
 
 type Expense = {
   id: string;
@@ -23,6 +35,7 @@ export default function Expenses() {
   const navigate = useNavigate();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
+  const { isAdmin } = useUserRole();
 
   useEffect(() => {
     loadExpenses();
@@ -44,6 +57,22 @@ export default function Expenses() {
       toast.error("Failed to load expenses");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const deleteExpense = async (id: string, description: string) => {
+    try {
+      const { error } = await supabase
+        .from("expenses")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+      
+      toast.success("Expense deleted successfully");
+      loadExpenses();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete expense");
     }
   };
 
@@ -132,10 +161,10 @@ export default function Expenses() {
               </div>
             ) : (
               <div className="space-y-3">
-                {expenses.map((expense) => (
+                 {expenses.map((expense) => (
                   <div
                     key={expense.id}
-                    className="flex items-center justify-between p-4 rounded-lg border border-border bg-background/50 hover:bg-background transition-colors"
+                    className="flex items-center justify-between p-4 rounded-lg border border-border bg-background/50 hover:bg-background transition-colors group"
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-1">
@@ -153,8 +182,36 @@ export default function Expenses() {
                         <span>{expense.date}</span>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-accent">${expense.amount.toFixed(2)}</p>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-accent">${expense.amount.toFixed(2)}</p>
+                      </div>
+                      {isAdmin && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Expense?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete this expense record. This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => deleteExpense(expense.id, expense.description)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                     </div>
                   </div>
                 ))}

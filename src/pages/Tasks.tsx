@@ -3,7 +3,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Clock, AlertCircle } from "lucide-react";
+import { Plus, Clock, AlertCircle, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -217,6 +228,25 @@ export default function Tasks() {
     }
   };
 
+  const deleteTask = async (id: string, title: string) => {
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+      
+      toast.success("Task deleted successfully");
+      loadTasks();
+      if (role === 'admin' || role === 'manager') {
+        loadPendingCount();
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete task");
+    }
+  };
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "Critical": return "destructive";
@@ -274,7 +304,7 @@ export default function Tasks() {
                       </div>
                     )}
                   </div>
-                  <div className="mt-3 flex gap-2">
+                  <div className="mt-3 flex gap-2 flex-wrap">
                     {status !== "To Do" && (
                       <Button
                         size="sm"
@@ -304,6 +334,36 @@ export default function Tasks() {
                       >
                         Done
                       </Button>
+                    )}
+                    {(role === 'admin' || role === 'manager') && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10 ml-auto"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Task?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete "{task.title}". This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => deleteTask(task.id, task.title)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     )}
                   </div>
                 </div>

@@ -17,12 +17,25 @@ import {
   FileText,
   Wrench,
   Receipt,
+  Trash2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInDays } from "date-fns";
+import { useUserRole } from "@/hooks/useUserRole";
 
 type Asset = {
   id: string;
@@ -70,6 +83,7 @@ export default function AssetDetail() {
   const [loading, setLoading] = useState(true);
   const [expenseFilter, setExpenseFilter] = useState("all");
   const [maintenanceFilter, setMaintenanceFilter] = useState("all");
+  const { isAdmin } = useUserRole();
 
   useEffect(() => {
     if (id) {
@@ -186,6 +200,22 @@ export default function AssetDetail() {
     }
   };
 
+  const deleteAsset = async () => {
+    try {
+      const { error } = await supabase
+        .from("assets")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+      
+      toast.success("Asset deleted successfully");
+      navigate("/assets");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete asset");
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -239,6 +269,33 @@ export default function AssetDetail() {
               ID: {asset.asset_id} • {asset.category}
             </p>
           </div>
+          {isAdmin && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="text-destructive border-destructive hover:bg-destructive/10">
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Asset
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Asset?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete {asset.name} and all associated expenses, maintenance schedules, and tasks. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={deleteAsset}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
 
         {/* Key Metrics */}

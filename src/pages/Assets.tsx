@@ -2,10 +2,22 @@ import { Layout } from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Truck, Package, Wrench, Building2, Plus } from "lucide-react";
+import { Truck, Package, Wrench, Building2, Plus, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserRole } from "@/hooks/useUserRole";
 import { useNavigate } from "react-router-dom";
 
 const assetCategories = [
@@ -42,6 +54,7 @@ export default function Assets() {
     Tools: 0,
     Facilities: 0,
   });
+  const { isAdmin } = useUserRole();
 
   useEffect(() => {
     loadAssets();
@@ -71,6 +84,22 @@ export default function Assets() {
       toast.error("Failed to load assets");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const deleteAsset = async (id: string, name: string) => {
+    try {
+      const { error } = await supabase
+        .from("assets")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+      
+      toast.success(`${name} deleted successfully`);
+      loadAssets();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete asset");
     }
   };
 
@@ -125,13 +154,15 @@ export default function Assets() {
               </div>
             ) : (
               <div className="space-y-3">
-                {assets.map((asset) => (
+                 {assets.map((asset) => (
                   <div
                     key={asset.id}
-                    onClick={() => navigate(`/assets/${asset.id}`)}
-                    className="flex items-center justify-between p-4 rounded-lg border border-border bg-background/50 hover:bg-background transition-colors cursor-pointer hover:border-primary/50"
+                    className="flex items-center justify-between p-4 rounded-lg border border-border bg-background/50 hover:bg-background transition-colors group hover:border-primary/50"
                   >
-                    <div className="flex items-center gap-4 flex-1">
+                    <div 
+                      className="flex items-center gap-4 flex-1 cursor-pointer"
+                      onClick={() => navigate(`/assets/${asset.id}`)}
+                    >
                       <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
                         <Package className="w-6 h-6 text-primary" />
                       </div>
@@ -159,6 +190,35 @@ export default function Assets() {
                       <Badge variant={asset.status === "Active" ? "default" : "secondary"}>
                         {asset.status}
                       </Badge>
+                      {isAdmin && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Asset?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete {asset.name} and all associated expenses, maintenance schedules, and tasks. This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteAsset(asset.id, asset.name);
+                                }}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                     </div>
                   </div>
                 ))}

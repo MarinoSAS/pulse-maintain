@@ -2,11 +2,23 @@ import { Layout } from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Store, Plus, DollarSign, TrendingUp, Users } from "lucide-react";
+import { Store, Plus, DollarSign, TrendingUp, Users, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { useUserRole } from "@/hooks/useUserRole";
 import {
   Table,
   TableBody,
@@ -31,6 +43,7 @@ export default function Vendors() {
   const navigate = useNavigate();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
+  const { isAdmin } = useUserRole();
 
   useEffect(() => {
     loadVendors();
@@ -76,6 +89,22 @@ export default function Vendors() {
       toast.error("Failed to load vendors");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const deleteVendor = async (id: string, name: string, expenseCount: number) => {
+    try {
+      const { error } = await supabase
+        .from("vendors")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+      
+      toast.success(`${name} deleted successfully`);
+      loadVendors();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete vendor");
     }
   };
 
@@ -187,32 +216,79 @@ export default function Vendors() {
                     <TableHead className="text-right">Total Paid</TableHead>
                     <TableHead className="text-center"># Expenses</TableHead>
                     <TableHead>Last Payment</TableHead>
+                    {isAdmin && <TableHead className="w-[50px]"></TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {vendors.map((vendor) => (
-                    <TableRow 
-                      key={vendor.id}
-                      className="cursor-pointer hover:bg-accent/5"
+                 {vendors.map((vendor) => (
+                  <TableRow 
+                    key={vendor.id}
+                    className="group hover:bg-accent/5"
+                  >
+                    <TableCell 
+                      className="font-semibold cursor-pointer"
                       onClick={() => navigate(`/vendors/${vendor.id}`)}
                     >
-                      <TableCell className="font-semibold">{vendor.name}</TableCell>
-                      <TableCell>{vendor.contact_person || "—"}</TableCell>
-                      <TableCell>{vendor.email || "—"}</TableCell>
-                      <TableCell>{vendor.phone || "—"}</TableCell>
-                      <TableCell className="text-right font-bold text-accent">
-                        ${vendor.totalPaid.toFixed(2)}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="outline">{vendor.expenseCount}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        {vendor.lastPaymentDate 
-                          ? new Date(vendor.lastPaymentDate).toLocaleDateString()
-                          : "—"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                      {vendor.name}
+                    </TableCell>
+                    <TableCell onClick={() => navigate(`/vendors/${vendor.id}`)} className="cursor-pointer">
+                      {vendor.contact_person || "—"}
+                    </TableCell>
+                    <TableCell onClick={() => navigate(`/vendors/${vendor.id}`)} className="cursor-pointer">
+                      {vendor.email || "—"}
+                    </TableCell>
+                    <TableCell onClick={() => navigate(`/vendors/${vendor.id}`)} className="cursor-pointer">
+                      {vendor.phone || "—"}
+                    </TableCell>
+                    <TableCell 
+                      onClick={() => navigate(`/vendors/${vendor.id}`)}
+                      className="text-right font-bold text-accent cursor-pointer"
+                    >
+                      ${vendor.totalPaid.toFixed(2)}
+                    </TableCell>
+                    <TableCell onClick={() => navigate(`/vendors/${vendor.id}`)} className="text-center cursor-pointer">
+                      <Badge variant="outline">{vendor.expenseCount}</Badge>
+                    </TableCell>
+                    <TableCell onClick={() => navigate(`/vendors/${vendor.id}`)} className="cursor-pointer">
+                      {vendor.lastPaymentDate 
+                        ? new Date(vendor.lastPaymentDate).toLocaleDateString()
+                        : "—"}
+                    </TableCell>
+                    <TableCell>
+                      {isAdmin && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Vendor?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete {vendor.name}. 
+                                {vendor.expenseCount > 0 && ` This vendor has ${vendor.expenseCount} associated expense${vendor.expenseCount !== 1 ? 's' : ''} which will have their vendor reference removed.`}
+                                {' '}This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteVendor(vendor.id, vendor.name, vendor.expenseCount);
+                                }}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
                 </TableBody>
               </Table>
             )}

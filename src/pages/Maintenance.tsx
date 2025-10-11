@@ -2,7 +2,18 @@ import { Layout } from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, AlertCircle, Plus, CheckCircle2 } from "lucide-react";
+import { Calendar, AlertCircle, Plus, CheckCircle2, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -34,6 +45,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useUserRole } from "@/hooks/useUserRole";
 
 const maintenanceSchema = z.object({
   assetId: z.string().min(1, "Please select an asset"),
@@ -57,6 +69,7 @@ export default function Maintenance() {
   const [schedules, setSchedules] = useState<MaintenanceSchedule[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { isAdmin } = useUserRole();
 
   const form = useForm<z.infer<typeof maintenanceSchema>>({
     resolver: zodResolver(maintenanceSchema),
@@ -145,6 +158,22 @@ export default function Maintenance() {
       loadSchedules();
     } catch (error: any) {
       toast.error("Failed to update maintenance");
+    }
+  };
+
+  const deleteSchedule = async (id: string, type: string) => {
+    try {
+      const { error } = await supabase
+        .from("maintenance_schedules")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+      
+      toast.success("Maintenance schedule deleted");
+      loadSchedules();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete schedule");
     }
   };
 
@@ -326,15 +355,47 @@ export default function Maintenance() {
                         <div className="text-sm font-medium mb-2">
                           {schedule.completed ? "Completed" : "Scheduled"}: {schedule.completed ? schedule.completed_date : schedule.scheduled_date}
                         </div>
-                        {!schedule.completed && (
-                          <Button
-                            size="sm"
-                            onClick={() => markComplete(schedule.id)}
-                            className="bg-gradient-accent"
-                          >
-                            Mark Complete
-                          </Button>
-                        )}
+                        <div className="flex gap-2 justify-end">
+                          {!schedule.completed && (
+                            <Button
+                              size="sm"
+                              onClick={() => markComplete(schedule.id)}
+                              className="bg-gradient-accent"
+                            >
+                              Mark Complete
+                            </Button>
+                          )}
+                          {isAdmin && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Maintenance Schedule?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This will permanently delete this {schedule.maintenance_type} maintenance schedule. This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => deleteSchedule(schedule.id, schedule.maintenance_type)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

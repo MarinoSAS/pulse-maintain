@@ -4,7 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Mail, Phone, Shield, Copy, Check, Users, CheckCircle2, Clock } from "lucide-react";
+import { Plus, Mail, Phone, Shield, Copy, Check, Users, CheckCircle2, Clock, Trash2, User } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -62,6 +73,7 @@ type TeamMember = {
   active_tasks: number;
   completed_tasks: number;
   created_at: string;
+  actual_role?: 'admin' | 'manager' | null;
 };
 
 export default function Team() {
@@ -93,11 +105,21 @@ export default function Team() {
     try {
       const { data, error } = await supabase
         .from("team_members")
-        .select("*")
+        .select(`
+          *,
+          user_roles!left(role)
+        `)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setTeamMembers(data || []);
+      
+      // Map the data to include actual_role from user_roles
+      const membersWithRoles = (data || []).map((member: any) => ({
+        ...member,
+        actual_role: (member.user_roles?.[0]?.role || null) as 'admin' | 'manager' | null
+      }));
+      
+      setTeamMembers(membersWithRoles);
     } catch (error: any) {
       toast.error("Failed to load team members");
     }
@@ -165,6 +187,54 @@ export default function Team() {
     setCopied(true);
     toast.success("Invitation link copied to clipboard!");
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const deleteTeamMember = async (id: string, name: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Prevent admin from deleting themselves
+      if (user?.id === id) {
+        toast.error("You cannot delete your own account");
+        return;
+      }
+
+      const { error } = await supabase
+        .from("team_members")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+      
+      toast.success(`${name} removed from team`);
+      loadTeamMembers();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete team member");
+    }
+  };
+
+  const getRoleBadge = (actualRole: 'admin' | 'manager' | null) => {
+    if (actualRole === 'admin') {
+      return (
+        <Badge className="bg-destructive/10 text-destructive border-destructive/30">
+          <Shield className="w-3 h-3 mr-1" />
+          Admin
+        </Badge>
+      );
+    }
+    if (actualRole === 'manager') {
+      return (
+        <Badge className="bg-primary/10 text-primary border-primary/30">
+          <User className="w-3 h-3 mr-1" />
+          Manager
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="outline" className="text-xs">
+        No Role
+      </Badge>
+    );
   };
 
   if (roleLoading || loading) {
@@ -305,10 +375,34 @@ export default function Team() {
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-foreground truncate">{member.name}</h3>
-                          <Badge variant="secondary" className="mt-1">
-                            {member.role}
-                          </Badge>
+                          <div className="flex items-center gap-2 mt-1">
+                            {getRoleBadge(member.actual_role)}
+                          </div>
                         </div>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remove Team Member?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently remove {member.name} from the team. This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => deleteTeamMember(member.id, member.name)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
 
                       {member.description && (

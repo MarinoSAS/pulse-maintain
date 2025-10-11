@@ -2,7 +2,18 @@ import { Layout } from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Mail, Phone, MapPin, DollarSign, Calendar, Receipt } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, DollarSign, Calendar, Receipt, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -15,6 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useUserRole } from "@/hooks/useUserRole";
 
 type Vendor = {
   id: string;
@@ -42,6 +54,7 @@ export default function VendorDetail() {
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
+  const { isAdmin } = useUserRole();
 
   useEffect(() => {
     if (id) {
@@ -86,6 +99,22 @@ export default function VendorDetail() {
     }
   };
 
+  const deleteVendor = async () => {
+    try {
+      const { error } = await supabase
+        .from("vendors")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+      
+      toast.success("Vendor deleted successfully");
+      navigate("/vendors");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete vendor");
+    }
+  };
+
   if (!vendor) {
     return (
       <Layout>
@@ -115,13 +144,42 @@ export default function VendorDetail() {
           </Button>
           
           <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-foreground">{vendor.name}</h1>
-              {vendor.contact_person && (
-                <p className="text-lg text-muted-foreground mt-1">Contact: {vendor.contact_person}</p>
-              )}
-            </div>
+          <div className="flex-1">
+            <h1 className="text-4xl font-bold text-foreground">{vendor.name}</h1>
+            {vendor.contact_person && (
+              <p className="text-lg text-muted-foreground mt-1">Contact: {vendor.contact_person}</p>
+            )}
           </div>
+          {isAdmin && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="text-destructive border-destructive hover:bg-destructive/10">
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Vendor
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Vendor?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete {vendor.name}. 
+                    {expenses.length > 0 && ` This vendor has ${expenses.length} associated expense${expenses.length !== 1 ? 's' : ''} which will have their vendor reference removed.`}
+                    {' '}This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={deleteVendor}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
 
           {/* Contact Information */}
           <div className="mt-6 flex flex-wrap gap-4">
