@@ -87,7 +87,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           date: string
-          description: string
+          description: string | null
           id: string
           invoice_number: string | null
           updated_at: string
@@ -101,7 +101,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           date: string
-          description: string
+          description?: string | null
           id?: string
           invoice_number?: string | null
           updated_at?: string
@@ -115,7 +115,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           date?: string
-          description?: string
+          description?: string | null
           id?: string
           invoice_number?: string | null
           updated_at?: string
