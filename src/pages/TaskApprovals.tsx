@@ -203,23 +203,18 @@ export default function TaskApprovals() {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">Task Approvals</h1>
-            <p className="text-muted-foreground">Review and approve maintenance issue reports</p>
-          </div>
-          <Button variant="outline" onClick={() => navigate("/tasks")}>
-            Back to Tasks
-          </Button>
+      <div className="p-8">
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-foreground">Task Approvals</h1>
+          <p className="text-muted-foreground mt-1">
+            Review and approve pending task submissions
+          </p>
         </div>
 
         {tasks.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">No pending approvals</p>
-            </CardContent>
-          </Card>
+          <div className="text-center py-12">
+            <p className="text-muted-foreground text-lg">No pending task approvals</p>
+          </div>
         ) : (
           <div className="space-y-4">
             {tasks.map((task) => (
