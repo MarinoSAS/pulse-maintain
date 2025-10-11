@@ -326,6 +326,12 @@ export type Database = {
           approved_by: string | null
           asset_id: string | null
           assigned_to: string | null
+          completion_comments: string | null
+          completion_confirmed_at: string | null
+          completion_confirmed_by: string | null
+          completion_status:
+            | Database["public"]["Enums"]["completion_status"]
+            | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -344,6 +350,12 @@ export type Database = {
           approved_by?: string | null
           asset_id?: string | null
           assigned_to?: string | null
+          completion_comments?: string | null
+          completion_confirmed_at?: string | null
+          completion_confirmed_by?: string | null
+          completion_status?:
+            | Database["public"]["Enums"]["completion_status"]
+            | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -362,6 +374,12 @@ export type Database = {
           approved_by?: string | null
           asset_id?: string | null
           assigned_to?: string | null
+          completion_comments?: string | null
+          completion_confirmed_at?: string | null
+          completion_confirmed_by?: string | null
+          completion_status?:
+            | Database["public"]["Enums"]["completion_status"]
+            | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -529,6 +547,7 @@ export type Database = {
       app_role: "admin" | "supervisor" | "technician" | "manager"
       asset_category: "Vehicles" | "Equipment" | "Tools" | "Facilities"
       asset_status: "Active" | "Maintenance" | "Inactive"
+      completion_status: "pending_confirmation" | "confirmed"
       maintenance_type_enum:
         | "Service"
         | "Oil Change"
@@ -668,6 +687,7 @@ export const Constants = {
       app_role: ["admin", "supervisor", "technician", "manager"],
       asset_category: ["Vehicles", "Equipment", "Tools", "Facilities"],
       asset_status: ["Active", "Maintenance", "Inactive"],
+      completion_status: ["pending_confirmation", "confirmed"],
       maintenance_type_enum: [
         "Service",
         "Oil Change",

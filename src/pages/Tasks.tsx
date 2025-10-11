@@ -69,6 +69,11 @@ type Task = {
   approval_status: string;
   is_issue_report: boolean;
   rejection_reason: string | null;
+  created_by: string | null;
+  completion_status: 'pending_confirmation' | 'confirmed' | null;
+  completion_confirmed_by: string | null;
+  completion_confirmed_at: string | null;
+  completion_comments: string | null;
   team_member?: { name: string; initials: string } | null;
   asset?: { name: string } | null;
 };
@@ -80,6 +85,10 @@ export default function Tasks() {
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [selectedTaskForConfirm, setSelectedTaskForConfirm] = useState<Task | null>(null);
+  const [confirmComments, setConfirmComments] = useState("");
   const { role } = useUserRole();
   const navigate = useNavigate();
   const isRegularUser = !role || (role !== 'admin' && role !== 'manager');
@@ -103,6 +112,12 @@ export default function Tasks() {
     if (role === 'admin' || role === 'manager') {
       loadPendingCount();
     }
+    
+    const loadCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setCurrentUserId(user.id);
+    };
+    loadCurrentUser();
   }, [role]);
 
   const loadTasks = async () => {
@@ -215,16 +230,58 @@ export default function Tasks() {
 
   const updateTaskStatus = async (taskId: string, newStatus: "To Do" | "In Progress" | "Done") => {
     try {
+      const updateData: any = { status: newStatus };
+      
+      // When a manager completes a task, set it to pending confirmation
+      if (newStatus === "Done" && role === 'manager') {
+        updateData.completion_status = 'pending_confirmation';
+      } else if (newStatus === "Done" && role === 'admin') {
+        // Admin completions are auto-confirmed
+        updateData.completion_status = 'confirmed';
+        updateData.completion_confirmed_by = currentUserId;
+        updateData.completion_confirmed_at = new Date().toISOString();
+      }
+      
       const { error } = await supabase
         .from("tasks")
-        .update({ status: newStatus })
+        .update(updateData)
         .eq("id", taskId);
 
       if (error) throw error;
-      toast.success("Task updated!");
+      
+      if (newStatus === "Done" && role === 'manager') {
+        toast.success("Task marked as done - awaiting admin confirmation");
+      } else {
+        toast.success("Task updated!");
+      }
       loadTasks();
     } catch (error: any) {
       toast.error("Failed to update task");
+    }
+  };
+
+  const confirmTaskCompletion = async () => {
+    if (!selectedTaskForConfirm) return;
+    
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .update({ 
+          completion_status: 'confirmed',
+          completion_confirmed_by: currentUserId,
+          completion_confirmed_at: new Date().toISOString(),
+          completion_comments: confirmComments || null
+        })
+        .eq("id", selectedTaskForConfirm.id);
+
+      if (error) throw error;
+      toast.success("Task completion confirmed!");
+      setConfirmDialogOpen(false);
+      setSelectedTaskForConfirm(null);
+      setConfirmComments("");
+      loadTasks();
+    } catch (error: any) {
+      toast.error("Failed to confirm task completion");
     }
   };
 
@@ -281,9 +338,30 @@ export default function Tasks() {
                   {task.asset && (
                     <p className="text-xs text-muted-foreground mb-1">Asset: {task.asset.name}</p>
                   )}
-                  {task.description && (
+                {task.description && (
                     <p className="text-sm text-muted-foreground mb-3">{task.description}</p>
                   )}
+                  
+                  {/* Completion Status Badges */}
+                  {task.completion_status === 'pending_confirmation' && (
+                    <Badge variant="outline" className="mb-2 border-orange-500 text-orange-600 bg-orange-50 dark:bg-orange-950/20">
+                      <Clock className="w-3 h-3 mr-1" />
+                      Awaiting Confirmation
+                    </Badge>
+                  )}
+                  {task.completion_status === 'confirmed' && (
+                    <div className="mb-2 space-y-1">
+                      <Badge variant="outline" className="border-green-500 text-green-600 bg-green-50 dark:bg-green-950/20">
+                        ✓ Confirmed
+                      </Badge>
+                      {task.completion_comments && (
+                        <p className="text-xs text-muted-foreground italic mt-1">
+                          Admin note: {task.completion_comments}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  
                   <div className="flex items-center justify-between mt-3">
                     <div className="flex items-center gap-2">
                       {task.team_member && (
@@ -335,7 +413,22 @@ export default function Tasks() {
                         Done
                       </Button>
                     )}
-                    {(role === 'admin' || role === 'manager') && (
+                    {/* Admin Confirmation Button */}
+                    {role === 'admin' && task.completion_status === 'pending_confirmation' && (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => {
+                          setSelectedTaskForConfirm(task);
+                          setConfirmDialogOpen(true);
+                        }}
+                        className="text-xs bg-green-600 hover:bg-green-700"
+                      >
+                        Confirm Completion
+                      </Button>
+                    )}
+                    
+                    {role === 'admin' && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
@@ -604,6 +697,200 @@ export default function Tasks() {
               ))
             )}
           </div>
+        ) : role === 'manager' ? (
+          <div className="space-y-8">
+            {/* Tasks Assigned to Manager */}
+            <div>
+              <h2 className="text-2xl font-bold mb-4">My Assigned Tasks</h2>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {["To Do", "In Progress", "Done"].map((status) => {
+                  const columnTasks = tasks.filter(
+                    (t) => t.status === status && 
+                    t.approval_status === 'approved' && 
+                    t.assigned_to === currentUserId
+                  );
+                  
+                  return (
+                    <Card key={status} className="shadow-md bg-gradient-card">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-bold">{status}</h3>
+                          <Badge variant="secondary">{columnTasks.length}</Badge>
+                        </div>
+                        <div className="space-y-3">
+                          {columnTasks.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-8">
+                              No {status.toLowerCase()} tasks
+                            </p>
+                          ) : (
+                            columnTasks.map((task) => (
+                              <div key={task.id} className="p-4 rounded-lg border border-border bg-background hover:shadow-md transition-all">
+                                <div className="flex items-center justify-between mb-2">
+                                  <h4 className="font-semibold text-foreground">{task.title}</h4>
+                                  {task.is_issue_report && (
+                                    <Badge variant="outline" className="text-xs">Issue Report</Badge>
+                                  )}
+                                </div>
+                                {task.asset && (
+                                  <p className="text-xs text-muted-foreground mb-1">Asset: {task.asset.name}</p>
+                                )}
+                                {task.description && (
+                                  <p className="text-sm text-muted-foreground mb-3">{task.description}</p>
+                                )}
+                                
+                                {task.completion_status === 'pending_confirmation' && (
+                                  <Badge variant="outline" className="mb-2 border-orange-500 text-orange-600 bg-orange-50 dark:bg-orange-950/20">
+                                    <Clock className="w-3 h-3 mr-1" />
+                                    Awaiting Confirmation
+                                  </Badge>
+                                )}
+                                {task.completion_status === 'confirmed' && (
+                                  <div className="mb-2 space-y-1">
+                                    <Badge variant="outline" className="border-green-500 text-green-600 bg-green-50 dark:bg-green-950/20">
+                                      ✓ Confirmed
+                                    </Badge>
+                                    {task.completion_comments && (
+                                      <p className="text-xs text-muted-foreground italic mt-1">
+                                        Admin note: {task.completion_comments}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                                
+                                <div className="flex items-center justify-between mt-3">
+                                  <Badge variant={getPriorityColor(task.priority)} className="text-xs">
+                                    {task.priority}
+                                  </Badge>
+                                  {task.due_date && (
+                                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                      <Clock className="w-3 h-3" />
+                                      {task.due_date}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="mt-3 flex gap-2 flex-wrap">
+                                  {status !== "To Do" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => updateTaskStatus(task.id, "To Do")}
+                                      className="text-xs"
+                                    >
+                                      To Do
+                                    </Button>
+                                  )}
+                                  {status !== "In Progress" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => updateTaskStatus(task.id, "In Progress")}
+                                      className="text-xs"
+                                    >
+                                      In Progress
+                                    </Button>
+                                  )}
+                                  {status !== "Done" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => updateTaskStatus(task.id, "Done")}
+                                      className="text-xs"
+                                    >
+                                      Done
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+            
+            {/* Tasks Created by Manager */}
+            <div>
+              <h2 className="text-2xl font-bold mb-4">Tasks I Created</h2>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {["To Do", "In Progress", "Done"].map((status) => {
+                  const columnTasks = tasks.filter(
+                    (t) => t.status === status && 
+                    t.approval_status === 'approved' && 
+                    t.created_by === currentUserId &&
+                    t.assigned_to !== currentUserId
+                  );
+                  
+                  return (
+                    <Card key={status} className="shadow-md bg-gradient-card">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-bold">{status}</h3>
+                          <Badge variant="secondary">{columnTasks.length}</Badge>
+                        </div>
+                        <div className="space-y-3">
+                          {columnTasks.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-8">
+                              No {status.toLowerCase()} tasks
+                            </p>
+                          ) : (
+                            columnTasks.map((task) => (
+                              <div key={task.id} className="p-4 rounded-lg border border-border bg-background hover:shadow-md transition-all">
+                                <div className="flex items-center justify-between mb-2">
+                                  <h4 className="font-semibold text-foreground">{task.title}</h4>
+                                </div>
+                                {task.asset && (
+                                  <p className="text-xs text-muted-foreground mb-1">Asset: {task.asset.name}</p>
+                                )}
+                                {task.description && (
+                                  <p className="text-sm text-muted-foreground mb-3">{task.description}</p>
+                                )}
+                                
+                                {task.completion_status === 'pending_confirmation' && (
+                                  <Badge variant="outline" className="mb-2 border-orange-500 text-orange-600 bg-orange-50 dark:bg-orange-950/20">
+                                    <Clock className="w-3 h-3 mr-1" />
+                                    Awaiting Confirmation
+                                  </Badge>
+                                )}
+                                {task.completion_status === 'confirmed' && (
+                                  <Badge variant="outline" className="mb-2 border-green-500 text-green-600 bg-green-50 dark:bg-green-950/20">
+                                    ✓ Confirmed
+                                  </Badge>
+                                )}
+                                
+                                <div className="flex items-center justify-between mt-3">
+                                  <div className="flex items-center gap-2">
+                                    {task.team_member && (
+                                      <Avatar className="w-7 h-7">
+                                        <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                                          {task.team_member.initials}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                    )}
+                                    <Badge variant={getPriorityColor(task.priority)} className="text-xs">
+                                      {task.priority}
+                                    </Badge>
+                                  </div>
+                                  {task.due_date && (
+                                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                      <Clock className="w-3 h-3" />
+                                      {task.due_date}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {renderTaskColumn("To Do", "To Do")}
@@ -611,6 +898,42 @@ export default function Tasks() {
             {renderTaskColumn("Done", "Done")}
           </div>
         )}
+        
+        {/* Admin Confirmation Dialog */}
+        <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Task Completion</DialogTitle>
+              <DialogDescription>
+                Confirm that "{selectedTaskForConfirm?.title}" has been completed successfully.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Comments (Optional)</label>
+                <Textarea
+                  value={confirmComments}
+                  onChange={(e) => setConfirmComments(e.target.value)}
+                  placeholder="Add any notes about the completion..."
+                  className="mt-1"
+                  rows={4}
+                />
+              </div>
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" onClick={() => {
+                  setConfirmDialogOpen(false);
+                  setSelectedTaskForConfirm(null);
+                  setConfirmComments("");
+                }}>
+                  Cancel
+                </Button>
+                <Button onClick={confirmTaskCompletion} className="bg-green-600 hover:bg-green-700">
+                  Confirm Completion
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

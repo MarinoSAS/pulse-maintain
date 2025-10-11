@@ -28,11 +28,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth();
   const { isAdmin } = useUserRole();
 
-  // Expense notification system for admins
+  // Expense and task completion notification system for admins
   useEffect(() => {
     if (!isAdmin) return;
 
-    const channel = supabase
+    const expensesChannel = supabase
       .channel('expense-notifications')
       .on(
         'postgres_changes',
@@ -48,8 +48,29 @@ export function Layout({ children }: { children: React.ReactNode }) {
       )
       .subscribe();
 
+    const tasksChannel = supabase
+      .channel('task-completion-notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'tasks'
+        },
+        async (payload) => {
+          const task = payload.new as any;
+          if (task.completion_status === 'pending_confirmation') {
+            toast.info('Task completed - requires confirmation', {
+              description: `"${task.title}" has been marked as done by a manager`
+            });
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(expensesChannel);
+      supabase.removeChannel(tasksChannel);
     };
   }, [isAdmin]);
 
