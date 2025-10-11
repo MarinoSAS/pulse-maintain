@@ -183,7 +183,7 @@ export default function TaskApprovals() {
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case "Critical": return "destructive";
+      case "Urgent": return "destructive";
       case "High": return "destructive";
       case "Medium": return "default";
       case "Low": return "secondary";
@@ -308,7 +308,7 @@ export default function TaskApprovals() {
                     <SelectItem value="Low">Low</SelectItem>
                     <SelectItem value="Medium">Medium</SelectItem>
                     <SelectItem value="High">High</SelectItem>
-                    <SelectItem value="Critical">Critical</SelectItem>
+                    <SelectItem value="Urgent">Urgent</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
