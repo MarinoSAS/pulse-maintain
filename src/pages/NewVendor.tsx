@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
+import { useUserRole } from "@/hooks/useUserRole";
 
 const vendorSchema = z.object({
   name: z.string().min(1, "Vendor name is required").max(100, "Name too long"),
@@ -31,6 +32,7 @@ const vendorSchema = z.object({
 export default function NewVendor() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { isAdmin } = useUserRole();
   
   const form = useForm<z.infer<typeof vendorSchema>>({
     resolver: zodResolver(vendorSchema),
@@ -49,6 +51,9 @@ export default function NewVendor() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
+      // Managers create pending vendors, admins create approved vendors
+      const approvalStatus = isAdmin ? 'approved' : 'pending';
+      
       const { error } = await supabase.from("vendors").insert({
         name: values.name,
         contact_person: values.contactPerson || null,
@@ -57,11 +62,18 @@ export default function NewVendor() {
         address: values.address || null,
         notes: values.notes || null,
         created_by: user?.id,
+        approval_status: approvalStatus,
+        approved_by: isAdmin ? user?.id : null,
+        approved_at: isAdmin ? new Date().toISOString() : null,
       });
 
       if (error) throw error;
       
-      toast.success("Vendor added successfully!");
+      if (isAdmin) {
+        toast.success("Vendor added successfully!");
+      } else {
+        toast.success("Vendor submitted for admin approval!");
+      }
       navigate("/vendors");
     } catch (error: any) {
       toast.error(error.message || "Failed to add vendor");

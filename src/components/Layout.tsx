@@ -1,10 +1,14 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Package, ClipboardList, Calendar, DollarSign, Users, LogOut, Store } from "lucide-react";
+import { Home, Package, ClipboardList, Calendar, DollarSign, Users, LogOut, Store, CheckSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
+import { supabase } from "@/integrations/supabase/client";
+import { useEffect } from "react";
+import { toast } from "sonner";
 
-const navigation = [
+const baseNavigation = [
   { name: "Dashboard", href: "/", icon: Home },
   { name: "Assets", href: "/assets", icon: Package },
   { name: "Tasks", href: "/tasks", icon: ClipboardList },
@@ -14,9 +18,40 @@ const navigation = [
   { name: "Team", href: "/team", icon: Users },
 ];
 
+const adminOnlyNavigation = [
+  { name: "Asset Approvals", href: "/assets/approvals", icon: CheckSquare },
+  { name: "Vendor Approvals", href: "/vendors/approvals", icon: CheckSquare },
+];
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { user, signOut } = useAuth();
+  const { isAdmin } = useUserRole();
+
+  // Expense notification system for admins
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const channel = supabase
+      .channel('expense-notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'expenses'
+        },
+        (payload) => {
+          const expense = payload.new as any;
+          toast.info(`New expense added: $${expense.amount} - ${expense.description || 'No description'}`);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isAdmin]);
 
   return (
     <div className="flex h-screen bg-background">
@@ -28,7 +63,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
         
         <nav className="flex-1 p-4 space-y-1">
-          {navigation.map((item) => {
+          {baseNavigation.map((item) => {
             const isActive = location.pathname === item.href;
             return (
               <Link
@@ -46,6 +81,34 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
+          
+          {isAdmin && (
+            <>
+              <div className="pt-4 pb-2 px-4">
+                <p className="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
+                  Admin
+                </p>
+              </div>
+              {adminOnlyNavigation.map((item) => {
+                const isActive = location.pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200",
+                      isActive
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-md"
+                        : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+                    )}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    <span className="font-medium">{item.name}</span>
+                  </Link>
+                );
+              })}
+            </>
+          )}
         </nav>
 
         <div className="p-4 border-t border-sidebar-border">

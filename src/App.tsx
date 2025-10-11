@@ -18,6 +18,8 @@ import VendorDetail from "./pages/VendorDetail";
 import Team from "./pages/Team";
 import Auth from "./pages/Auth";
 import AcceptInvitation from "./pages/AcceptInvitation";
+import AssetApprovals from "./pages/AssetApprovals";
+import VendorApprovals from "./pages/VendorApprovals";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +37,7 @@ const App = () => (
           <Route path="/assets" element={<Assets />} />
           <Route path="/assets/:id" element={<AssetDetail />} />
           <Route path="/assets/new" element={<NewAsset />} />
+          <Route path="/assets/approvals" element={<AssetApprovals />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/tasks/approvals" element={<TaskApprovals />} />
           <Route path="/maintenance" element={<Maintenance />} />
@@ -43,6 +46,7 @@ const App = () => (
           <Route path="/vendors" element={<Vendors />} />
           <Route path="/vendors/new" element={<NewVendor />} />
           <Route path="/vendors/:id" element={<VendorDetail />} />
+          <Route path="/vendors/approvals" element={<VendorApprovals />} />
           <Route path="/team" element={<Team />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

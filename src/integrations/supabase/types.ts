@@ -16,6 +16,9 @@ export type Database = {
     Tables: {
       assets: {
         Row: {
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
           asset_id: string
           assigned_to: string | null
           category: Database["public"]["Enums"]["asset_category"]
@@ -30,10 +33,14 @@ export type Database = {
           maintenance_interval_km: number | null
           name: string
           odometer_reading: number | null
+          rejection_reason: string | null
           status: Database["public"]["Enums"]["asset_status"]
           updated_at: string
         }
         Insert: {
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           asset_id: string
           assigned_to?: string | null
           category: Database["public"]["Enums"]["asset_category"]
@@ -48,10 +55,14 @@ export type Database = {
           maintenance_interval_km?: number | null
           name: string
           odometer_reading?: number | null
+          rejection_reason?: string | null
           status?: Database["public"]["Enums"]["asset_status"]
           updated_at?: string
         }
         Update: {
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           asset_id?: string
           assigned_to?: string | null
           category?: Database["public"]["Enums"]["asset_category"]
@@ -66,6 +77,7 @@ export type Database = {
           maintenance_interval_km?: number | null
           name?: string
           odometer_reading?: number | null
+          rejection_reason?: string | null
           status?: Database["public"]["Enums"]["asset_status"]
           updated_at?: string
         }
@@ -448,6 +460,9 @@ export type Database = {
       vendors: {
         Row: {
           address: string | null
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
           contact_person: string | null
           created_at: string
           created_by: string | null
@@ -456,10 +471,14 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          rejection_reason: string | null
           updated_at: string
         }
         Insert: {
           address?: string | null
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           contact_person?: string | null
           created_at?: string
           created_by?: string | null
@@ -468,10 +487,14 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          rejection_reason?: string | null
           updated_at?: string
         }
         Update: {
           address?: string | null
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           contact_person?: string | null
           created_at?: string
           created_by?: string | null
@@ -480,6 +503,7 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          rejection_reason?: string | null
           updated_at?: string
         }
         Relationships: []

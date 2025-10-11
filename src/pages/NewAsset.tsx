@@ -24,6 +24,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
+import { useUserRole } from "@/hooks/useUserRole";
 
 const assetFormSchema = z.object({
   assetId: z.string().min(1, "Asset ID is required").max(50, "Asset ID too long"),
@@ -46,6 +47,7 @@ export default function NewAsset() {
   const navigate = useNavigate();
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { isAdmin } = useUserRole();
   
   const form = useForm<z.infer<typeof assetFormSchema>>({
     resolver: zodResolver(assetFormSchema),
@@ -84,6 +86,9 @@ export default function NewAsset() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
+      // Managers create pending assets, admins create approved assets
+      const approvalStatus = isAdmin ? 'approved' : 'pending';
+      
       const { error } = await supabase.from("assets").insert({
         asset_id: values.assetId,
         name: values.name,
@@ -96,6 +101,9 @@ export default function NewAsset() {
         maintenance_interval_days: values.maintenanceIntervalDays ? parseInt(values.maintenanceIntervalDays) : null,
         maintenance_interval_km: values.maintenanceIntervalKm ? parseInt(values.maintenanceIntervalKm) : null,
         created_by: user?.id,
+        approval_status: approvalStatus,
+        approved_by: isAdmin ? user?.id : null,
+        approved_at: isAdmin ? new Date().toISOString() : null,
       });
 
       if (error) {
@@ -106,7 +114,11 @@ export default function NewAsset() {
         throw error;
       }
       
-      toast.success("Asset added successfully!");
+      if (isAdmin) {
+        toast.success("Asset added successfully!");
+      } else {
+        toast.success("Asset submitted for admin approval!");
+      }
       navigate("/assets");
     } catch (error: any) {
       toast.error(error.message || "Failed to add asset");
