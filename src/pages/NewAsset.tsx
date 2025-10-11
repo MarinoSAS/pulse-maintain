@@ -98,7 +98,13 @@ export default function NewAsset() {
         created_by: user?.id,
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505' && error.message.includes('assets_asset_id_key')) {
+          toast.error(`Asset ID "${values.assetId}" already exists. Please use a different ID.`);
+          return;
+        }
+        throw error;
+      }
       
       toast.success("Asset added successfully!");
       navigate("/assets");
