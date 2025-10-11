@@ -70,6 +70,7 @@ type TeamMember = {
   description: string | null;
   email: string | null;
   phone: string | null;
+  phone_number: string | null;
   active_tasks: number;
   completed_tasks: number;
   created_at: string;
@@ -103,25 +104,39 @@ export default function Team() {
 
   const loadTeamMembers = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: members, error: membersError } = await supabase
         .from("team_members")
-        .select(`
-          *,
-          user_roles(role)
-        `)
+        .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      
-      // Map the data to include actual_role from user_roles
-      const membersWithRoles = (data || []).map((member: any) => ({
-        ...member,
-        actual_role: (member.user_roles?.role || null) as 'admin' | 'manager' | null
+      if (membersError) throw membersError;
+
+      if (!members || members.length === 0) {
+        setTeamMembers([]);
+        return;
+      }
+
+      const ids = members.map((m: any) => m.id);
+      const { data: roles, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id, role")
+        .in("user_id", ids);
+
+      if (rolesError) {
+        console.warn("Failed to load roles:", rolesError);
+      }
+
+      const rolesMap = new Map((roles || []).map((r: any) => [r.user_id, r.role]));
+      const membersWithRoles = members.map((m: any) => ({
+        ...m,
+        actual_role: (rolesMap.get(m.id) || null) as 'admin' | 'manager' | null,
       }));
-      
+
       setTeamMembers(membersWithRoles);
     } catch (error: any) {
+      console.error("Error loading team members:", error);
       toast.error("Failed to load team members");
+      setTeamMembers([]);
     }
   };
 
@@ -410,12 +425,12 @@ export default function Team() {
                               <span className="truncate text-muted-foreground">{member.email}</span>
                             </div>
                           )}
-                          {member.phone && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <Phone className="w-4 h-4 text-muted-foreground" />
-                              <span className="text-muted-foreground">{member.phone}</span>
-                            </div>
-                          )}
+                      {(member.phone_number || member.phone) && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Phone className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-muted-foreground">{member.phone_number || member.phone}</span>
+                        </div>
+                      )}
                         </div>
                       )}
 
