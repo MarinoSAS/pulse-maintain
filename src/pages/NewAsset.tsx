@@ -205,7 +205,7 @@ export default function NewAsset() {
                         </FormControl>
                         <SelectContent>
                           {teamMembers.map((member) => (
-                            <SelectItem key={member.id} value={member.name}>
+                            <SelectItem key={member.id} value={member.id}>
                               {member.name} - {member.role}
                             </SelectItem>
                           ))}
