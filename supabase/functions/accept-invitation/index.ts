@@ -179,10 +179,10 @@ serve(async (req) => {
 
     console.log('Role assigned successfully');
 
-    // Mark invitation as accepted
+    // Mark invitation as accepted and store the email
     const { error: updateError } = await supabaseAdmin
       .from('invitations')
-      .update({ accepted: true })
+      .update({ accepted: true, email: generatedEmail })
       .eq('id', invitation.id);
 
     if (updateError) {
