@@ -138,17 +138,28 @@ serve(async (req) => {
       console.log('User created successfully:', userId);
     }
 
-    // Update team member with phone number and email
+    // Upsert team member with the correct user ID
+    const nameParts = invitation.invitee_name.split(" ");
+    const initials = nameParts.map((n: string) => n[0]).join("").toUpperCase().slice(0, 3);
+    
     const { error: teamMemberError } = await supabaseAdmin
       .from('team_members')
-      .update({ 
+      .upsert({ 
+        id: userId,  // Use the auth user ID as the primary key
+        name: invitation.invitee_name,
+        initials: initials,
+        role: invitation.role === 'admin' ? 'Administrator' : 'Manager',
         phone_number: phoneNumber,
-        email: generatedEmail 
-      })
-      .eq('name', invitation.invitee_name);
+        email: generatedEmail,
+        active_tasks: 0,
+        completed_tasks: 0
+      }, {
+        onConflict: 'id'
+      });
 
     if (teamMemberError) {
-      console.error('Error updating team member:', teamMemberError);
+      console.error('Error upserting team member:', teamMemberError);
+      throw teamMemberError;
     }
 
     // Assign or update the role for the user

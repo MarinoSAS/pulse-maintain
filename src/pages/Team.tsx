@@ -107,7 +107,7 @@ export default function Team() {
         .from("team_members")
         .select(`
           *,
-          user_roles!left(role)
+          user_roles(role)
         `)
         .order("created_at", { ascending: false });
 
@@ -116,7 +116,7 @@ export default function Team() {
       // Map the data to include actual_role from user_roles
       const membersWithRoles = (data || []).map((member: any) => ({
         ...member,
-        actual_role: (member.user_roles?.[0]?.role || null) as 'admin' | 'manager' | null
+        actual_role: (member.user_roles?.role || null) as 'admin' | 'manager' | null
       }));
       
       setTeamMembers(membersWithRoles);
@@ -157,15 +157,6 @@ export default function Team() {
       });
 
       if (error) throw error;
-
-      // Create team member record with description
-      const initials = values.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 3);
-      await supabase.from("team_members").insert({
-        name: values.name,
-        initials,
-        role: values.role === 'admin' ? 'Administrator' : 'Manager',
-        description: values.description || null,
-      });
 
       // Generate invite link
       const link = `${window.location.origin}/accept-invitation?token=${token}`;
