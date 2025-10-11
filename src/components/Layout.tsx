@@ -20,6 +20,7 @@ const baseNavigation = [
 
 const adminOnlyNavigation = [
   { name: "Asset Approvals", href: "/assets/approvals", icon: CheckSquare },
+  { name: "Task Approvals", href: "/tasks/approvals", icon: CheckSquare },
   { name: "Vendor Approvals", href: "/vendors/approvals", icon: CheckSquare },
 ];
 
