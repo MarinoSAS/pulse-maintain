@@ -25,6 +25,7 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
+import { MaintenanceRequirements, MaintenanceRequirement } from "@/components/MaintenanceRequirements";
 
 const assetFormSchema = z.object({
   assetId: z.string().min(1, "Asset ID is required").max(50, "Asset ID too long"),
@@ -39,14 +40,13 @@ const assetFormSchema = z.object({
   }),
   lastService: z.string().optional(),
   odometerReading: z.string().optional(),
-  maintenanceIntervalDays: z.string().optional(),
-  maintenanceIntervalKm: z.string().optional(),
 });
 
 export default function NewAsset() {
   const navigate = useNavigate();
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [requirements, setRequirements] = useState<MaintenanceRequirement[]>([]);
   const { isAdmin } = useUserRole();
   
   const form = useForm<z.infer<typeof assetFormSchema>>({
@@ -86,10 +86,15 @@ export default function NewAsset() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
+      // Validate requirements
+      const validRequirements = requirements.filter(
+        r => r.maintenance_type && (r.interval_days || r.interval_km)
+      );
+
       // Managers create pending assets, admins create approved assets
       const approvalStatus = isAdmin ? 'approved' : 'pending';
       
-      const { error } = await supabase.from("assets").insert({
+      const { data: asset, error: assetError } = await supabase.from("assets").insert({
         asset_id: values.assetId,
         name: values.name,
         description: values.description || null,
@@ -98,20 +103,37 @@ export default function NewAsset() {
         assigned_to: values.assignedTo || null,
         last_service: values.lastService || null,
         odometer_reading: values.odometerReading ? parseInt(values.odometerReading) : null,
-        maintenance_interval_days: values.maintenanceIntervalDays ? parseInt(values.maintenanceIntervalDays) : null,
-        maintenance_interval_km: values.maintenanceIntervalKm ? parseInt(values.maintenanceIntervalKm) : null,
         created_by: user?.id,
         approval_status: approvalStatus,
         approved_by: isAdmin ? user?.id : null,
         approved_at: isAdmin ? new Date().toISOString() : null,
-      });
+      }).select().single();
 
-      if (error) {
-        if (error.code === '23505' && error.message.includes('assets_asset_id_key')) {
+      if (assetError) {
+        if (assetError.code === '23505' && assetError.message.includes('assets_asset_id_key')) {
           toast.error(`Asset ID "${values.assetId}" already exists. Please use a different ID.`);
           return;
         }
-        throw error;
+        throw assetError;
+      }
+
+      // Insert maintenance requirements
+      if (validRequirements.length > 0 && asset) {
+        const requirementsToInsert = validRequirements.map(req => ({
+          asset_id: asset.id,
+          maintenance_type: req.maintenance_type,
+          interval_days: req.interval_days || null,
+          interval_km: req.interval_km || null,
+        }));
+
+        const { error: reqError } = await supabase
+          .from("maintenance_requirements")
+          .insert(requirementsToInsert);
+
+        if (reqError) {
+          console.error("Failed to add maintenance requirements:", reqError);
+          toast.error("Asset created but failed to add maintenance requirements");
+        }
       }
       
       if (isAdmin) {
@@ -270,53 +292,31 @@ export default function NewAsset() {
                 )}
               />
               
-              {/* Maintenance Configuration */}
+              {/* Current Odometer for Vehicles */}
+              {selectedCategory === "Vehicles" && (
+                <FormField
+                  control={form.control}
+                  name="odometerReading"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Current Odometer (km)</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="25000" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {/* Maintenance Requirements */}
               {selectedCategory && selectedCategory !== "Facilities" && (
-                <div className="pt-6 border-t space-y-6">
-                  <h3 className="font-semibold text-lg">Maintenance Schedule</h3>
-                  {selectedCategory === "Vehicles" && (
-                    <FormField
-                      control={form.control}
-                      name="odometerReading"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Current Odometer (km)</FormLabel>
-                          <FormControl>
-                            <Input type="number" placeholder="25000" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  )}
-                  <FormField
-                    control={form.control}
-                    name="maintenanceIntervalDays"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Service Interval (days)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="180" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                <div className="pt-6 border-t">
+                  <MaintenanceRequirements
+                    category={selectedCategory}
+                    value={requirements}
+                    onChange={setRequirements}
                   />
-                  {selectedCategory === "Vehicles" && (
-                    <FormField
-                      control={form.control}
-                      name="maintenanceIntervalKm"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Service Interval (km)</FormLabel>
-                          <FormControl>
-                            <Input type="number" placeholder="5000" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  )}
                 </div>
               )}
             </form>

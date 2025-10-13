@@ -115,6 +115,7 @@ export type Database = {
           next_service_interval_days: number | null
           next_service_interval_km: number | null
           odometer_at_service: number | null
+          requirement_id: string | null
           updated_at: string
           vendor: string | null
           vendor_id: string | null
@@ -135,6 +136,7 @@ export type Database = {
           next_service_interval_days?: number | null
           next_service_interval_km?: number | null
           odometer_at_service?: number | null
+          requirement_id?: string | null
           updated_at?: string
           vendor?: string | null
           vendor_id?: string | null
@@ -155,6 +157,7 @@ export type Database = {
           next_service_interval_days?: number | null
           next_service_interval_km?: number | null
           odometer_at_service?: number | null
+          requirement_id?: string | null
           updated_at?: string
           vendor?: string | null
           vendor_id?: string | null
@@ -165,6 +168,13 @@ export type Database = {
             columns: ["asset_id"]
             isOneToOne: false
             referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_requirement_id_fkey"
+            columns: ["requirement_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_requirements"
             referencedColumns: ["id"]
           },
           {
@@ -211,6 +221,60 @@ export type Database = {
           token?: string
         }
         Relationships: []
+      }
+      maintenance_requirements: {
+        Row: {
+          asset_id: string
+          created_at: string
+          id: string
+          interval_days: number | null
+          interval_km: number | null
+          last_completed_at: string | null
+          last_completed_odometer: number | null
+          last_expense_id: string | null
+          maintenance_type: string
+          updated_at: string
+        }
+        Insert: {
+          asset_id: string
+          created_at?: string
+          id?: string
+          interval_days?: number | null
+          interval_km?: number | null
+          last_completed_at?: string | null
+          last_completed_odometer?: number | null
+          last_expense_id?: string | null
+          maintenance_type: string
+          updated_at?: string
+        }
+        Update: {
+          asset_id?: string
+          created_at?: string
+          id?: string
+          interval_days?: number | null
+          interval_km?: number | null
+          last_completed_at?: string | null
+          last_completed_odometer?: number | null
+          last_expense_id?: string | null
+          maintenance_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_requirements_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_requirements_last_expense_id_fkey"
+            columns: ["last_expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       maintenance_schedules: {
         Row: {

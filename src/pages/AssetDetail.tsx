@@ -36,6 +36,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInDays } from "date-fns";
 import { useUserRole } from "@/hooks/useUserRole";
+import { MaintenanceRequirements, MaintenanceRequirement } from "@/components/MaintenanceRequirements";
 
 type Asset = {
   id: string;
@@ -53,6 +54,15 @@ type Asset = {
   last_maintenance_odometer: number | null;
   created_at: string;
   team_member?: { id: string; name: string; role: string } | null;
+};
+
+type MaintenanceReq = {
+  id: string;
+  maintenance_type: string;
+  interval_days: number | null;
+  interval_km: number | null;
+  last_completed_at: string | null;
+  last_completed_odometer: number | null;
 };
 
 type Expense = {
@@ -80,10 +90,11 @@ export default function AssetDetail() {
   const [asset, setAsset] = useState<Asset | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceSchedule[]>([]);
+  const [requirements, setRequirements] = useState<MaintenanceReq[]>([]);
   const [loading, setLoading] = useState(true);
   const [expenseFilter, setExpenseFilter] = useState("all");
   const [maintenanceFilter, setMaintenanceFilter] = useState("all");
-  const { isAdmin } = useUserRole();
+  const { isAdmin, isManager } = useUserRole();
 
   useEffect(() => {
     if (id) {
@@ -127,6 +138,16 @@ export default function AssetDetail() {
 
       if (maintenanceError) throw maintenanceError;
       setMaintenance(maintenanceData || []);
+
+      // Fetch maintenance requirements
+      const { data: reqData, error: reqError } = await supabase
+        .from("maintenance_requirements")
+        .select("*")
+        .eq("asset_id", id)
+        .order("maintenance_type");
+
+      if (reqError) throw reqError;
+      setRequirements(reqData || []);
     } catch (error: any) {
       toast.error("Failed to load asset details");
       console.error(error);
@@ -347,10 +368,13 @@ export default function AssetDetail() {
           </Card>
         )}
 
-        {/* Tabs */}
+          {/* Tabs */}
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="requirements">
+              Requirements ({requirements.length})
+            </TabsTrigger>
             <TabsTrigger value="expenses">
               Expenses ({expenses.length})
             </TabsTrigger>
@@ -447,6 +471,74 @@ export default function AssetDetail() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Requirements Tab */}
+          <TabsContent value="requirements" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Maintenance Requirements</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {requirements.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Wrench className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>No maintenance requirements defined</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {requirements.map((req) => {
+                      const daysSinceCompleted = req.last_completed_at 
+                        ? differenceInDays(new Date(), new Date(req.last_completed_at))
+                        : null;
+                      const kmSinceCompleted = req.last_completed_odometer && asset?.odometer_reading
+                        ? asset.odometer_reading - req.last_completed_odometer
+                        : null;
+
+                      const isDueByDays = req.interval_days && daysSinceCompleted !== null && daysSinceCompleted >= req.interval_days;
+                      const isDueByKm = req.interval_km && kmSinceCompleted !== null && kmSinceCompleted >= req.interval_km;
+                      const isDue = isDueByDays || isDueByKm;
+
+                      return (
+                        <div
+                          key={req.id}
+                          className={`p-4 rounded-lg border ${
+                            isDue ? 'border-warning bg-warning/5' : 'bg-background/50'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <Wrench className="w-4 h-4 text-muted-foreground" />
+                                <p className="font-medium">{req.maintenance_type}</p>
+                                {isDue && <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">Due</Badge>}
+                              </div>
+                              <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                                {req.interval_days && (
+                                  <p>• Every {req.interval_days} days
+                                    {daysSinceCompleted !== null && ` (${daysSinceCompleted} days since last)`}
+                                  </p>
+                                )}
+                                {req.interval_km && (
+                                  <p>• Every {req.interval_km.toLocaleString()} km
+                                    {kmSinceCompleted !== null && ` (${kmSinceCompleted.toLocaleString()} km since last)`}
+                                  </p>
+                                )}
+                                {req.last_completed_at && (
+                                  <p className="text-xs mt-1">
+                                    Last completed: {format(new Date(req.last_completed_at), "PPP")}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Expenses Tab */}
