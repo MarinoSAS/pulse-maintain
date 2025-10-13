@@ -20,14 +20,14 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <div className="p-8 space-y-8">
+      <div className="p-4 md:p-8 space-y-6 md:space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold text-foreground">Dashboard</h1>
-            <p className="text-muted-foreground mt-1">Overview of your maintenance operations</p>
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground">Dashboard</h1>
+            <p className="text-muted-foreground mt-1 text-sm md:text-base">Overview of your maintenance operations</p>
           </div>
-          <Button className="bg-gradient-accent shadow-md hover:shadow-lg transition-all">
+          <Button className="bg-gradient-accent shadow-md hover:shadow-lg transition-all w-full md:w-auto">
             <Package className="w-4 h-4 mr-2" />
             Add Asset
           </Button>

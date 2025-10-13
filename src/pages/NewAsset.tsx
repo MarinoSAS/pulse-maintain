@@ -152,8 +152,8 @@ export default function NewAsset() {
   return (
     <Layout>
       <div className="min-h-screen pb-24">
-        <div className="p-8 max-w-3xl mx-auto">
-          <div className="mb-8">
+        <div className="p-4 md:p-8 max-w-3xl mx-auto">
+          <div className="mb-6 md:mb-8">
             <Button
               variant="ghost"
               onClick={() => navigate("/assets")}
@@ -162,8 +162,8 @@ export default function NewAsset() {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Assets
             </Button>
-            <h1 className="text-4xl font-bold text-foreground">Add New Asset</h1>
-            <p className="text-muted-foreground mt-1">Enter the details of the new asset</p>
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground">Add New Asset</h1>
+            <p className="text-muted-foreground mt-1 text-sm md:text-base">Enter the details of the new asset</p>
           </div>
 
           <Form {...form}>
@@ -324,19 +324,20 @@ export default function NewAsset() {
         </div>
 
         {/* Sticky Footer */}
-        <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-4 shadow-lg">
-          <div className="max-w-3xl mx-auto flex justify-end gap-3">
+        <div className="fixed bottom-16 md:bottom-0 left-0 right-0 bg-background border-t border-border p-4 shadow-lg z-30">
+          <div className="max-w-3xl mx-auto flex flex-col md:flex-row justify-end gap-3">
             <Button
               type="button"
               variant="outline"
               onClick={() => navigate("/assets")}
               disabled={isSubmitting}
+              className="w-full md:w-auto"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="bg-gradient-accent"
+              className="bg-gradient-accent w-full md:w-auto"
               onClick={form.handleSubmit(onSubmit)}
               disabled={isSubmitting}
             >
