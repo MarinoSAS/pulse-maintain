@@ -34,6 +34,9 @@ const assetFormSchema = z.object({
   category: z.enum(["Vehicles", "Equipment", "Tools", "Facilities"], {
     required_error: "Please select a category",
   }),
+  company: z.enum(["Unifruit", "Limnia", "HRC", "Other"], {
+    required_error: "Please select a company",
+  }),
   assignedTo: z.string().optional(),
   status: z.enum(["Active", "Maintenance", "Inactive"], {
     required_error: "Please select a status",
@@ -99,6 +102,7 @@ export default function NewAsset() {
         name: values.name,
         description: values.description || null,
         category: values.category,
+        company: values.company,
         status: values.status,
         assigned_to: values.assignedTo || null,
         last_service: values.lastService || null,
@@ -224,6 +228,29 @@ export default function NewAsset() {
                         <SelectItem value="Equipment">Equipment</SelectItem>
                         <SelectItem value="Tools">Tools</SelectItem>
                         <SelectItem value="Facilities">Facilities</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="company"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Company</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select company" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Unifruit">Unifruit</SelectItem>
+                        <SelectItem value="Limnia">Limnia</SelectItem>
+                        <SelectItem value="HRC">HRC</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

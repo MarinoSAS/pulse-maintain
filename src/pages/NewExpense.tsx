@@ -44,6 +44,7 @@ const expenseSchema = z.object({
   description: z.string().max(500, "Description too long").optional(),
   requirementId: z.string().optional(),
   odometerAtService: z.string().optional(),
+  company: z.enum(["Unifruit", "Limnia", "HRC", "Other"]).optional(),
 });
 
 export default function NewExpense() {
@@ -80,6 +81,11 @@ export default function NewExpense() {
   useEffect(() => {
     if (selectedAssetId) {
       loadRequirements(selectedAssetId);
+      // Auto-populate company from selected asset
+      const selectedAsset = assets.find(a => a.id === selectedAssetId);
+      if (selectedAsset?.company) {
+        form.setValue("company", selectedAsset.company as any);
+      }
     }
   }, [selectedAssetId]);
 
@@ -141,6 +147,7 @@ export default function NewExpense() {
         description: values.description || null,
         requirement_id: values.requirementId || null,
         created_by: user?.id,
+        company: values.company || null,
       };
 
       if (values.odometerAtService) {
@@ -363,6 +370,33 @@ export default function NewExpense() {
                   )}
                 />
               )}
+
+              <FormField
+                control={form.control}
+                name="company"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Company</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Auto-filled from asset" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Unifruit">Unifruit</SelectItem>
+                        <SelectItem value="Limnia">Limnia</SelectItem>
+                        <SelectItem value="HRC">HRC</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Automatically set from asset. Override if needed.
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}

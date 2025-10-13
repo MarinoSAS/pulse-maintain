@@ -28,6 +28,7 @@ type Expense = {
   date: string;
   invoice_number: string | null;
   vendor: string | null;
+  company?: 'Unifruit' | 'Limnia' | 'HRC' | 'Other';
   asset: { asset_id: string; name: string } | null;
 };
 
@@ -167,10 +168,15 @@ export default function Expenses() {
                     className="flex items-center justify-between p-4 rounded-lg border border-border bg-background/50 hover:bg-background transition-colors group"
                   >
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-1">
-                        <h4 className="font-semibold text-foreground">{expense.description}</h4>
-                        <Badge variant="outline">{expense.category}</Badge>
-                      </div>
+                  <div className="flex items-center gap-3 mb-1">
+                    <h4 className="font-semibold text-foreground">{expense.description}</h4>
+                    <Badge variant="outline">{expense.category}</Badge>
+                    {expense.company && (
+                      <Badge variant="secondary" className="text-xs">
+                        {expense.company}
+                      </Badge>
+                    )}
+                  </div>
                       {expense.asset && (
                         <p className="text-sm text-muted-foreground">
                           {expense.asset.name} ({expense.asset.asset_id})

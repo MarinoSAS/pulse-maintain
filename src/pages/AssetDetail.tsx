@@ -44,6 +44,7 @@ type Asset = {
   name: string;
   description: string | null;
   category: string;
+  company: 'Unifruit' | 'Limnia' | 'HRC' | 'Other';
   status: string;
   assigned_to: string | null;
   last_service: string | null;
@@ -285,6 +286,7 @@ export default function AssetDetail() {
               <Badge variant={asset.status === "Active" ? "default" : "secondary"}>
                 {asset.status}
               </Badge>
+              <Badge variant="secondary">{asset.company}</Badge>
             </div>
             <p className="text-muted-foreground mt-1">
               ID: {asset.asset_id} • {asset.category}
@@ -395,6 +397,10 @@ export default function AssetDetail() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Company</p>
+                    <p className="font-medium">{asset.company}</p>
+                  </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Category</p>
                     <p className="font-medium">{asset.category}</p>

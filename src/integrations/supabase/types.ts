@@ -22,6 +22,7 @@ export type Database = {
           asset_id: string
           assigned_to: string | null
           category: Database["public"]["Enums"]["asset_category"]
+          company: Database["public"]["Enums"]["company_name"]
           created_at: string
           created_by: string | null
           description: string | null
@@ -44,6 +45,7 @@ export type Database = {
           asset_id: string
           assigned_to?: string | null
           category: Database["public"]["Enums"]["asset_category"]
+          company?: Database["public"]["Enums"]["company_name"]
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -66,6 +68,7 @@ export type Database = {
           asset_id?: string
           assigned_to?: string | null
           category?: Database["public"]["Enums"]["asset_category"]
+          company?: Database["public"]["Enums"]["company_name"]
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -103,6 +106,7 @@ export type Database = {
           amount: number
           asset_id: string
           category: string
+          company: Database["public"]["Enums"]["company_name"] | null
           created_at: string
           created_by: string | null
           date: string
@@ -124,6 +128,7 @@ export type Database = {
           amount: number
           asset_id: string
           category: string
+          company?: Database["public"]["Enums"]["company_name"] | null
           created_at?: string
           created_by?: string | null
           date: string
@@ -145,6 +150,7 @@ export type Database = {
           amount?: number
           asset_id?: string
           category?: string
+          company?: Database["public"]["Enums"]["company_name"] | null
           created_at?: string
           created_by?: string | null
           date?: string
@@ -641,6 +647,7 @@ export type Database = {
       app_role: "admin" | "supervisor" | "technician" | "manager"
       asset_category: "Vehicles" | "Equipment" | "Tools" | "Facilities"
       asset_status: "Active" | "Maintenance" | "Inactive"
+      company_name: "Unifruit" | "Limnia" | "HRC" | "Other"
       completion_status: "pending_confirmation" | "confirmed"
       maintenance_type_enum:
         | "Service"
@@ -781,6 +788,7 @@ export const Constants = {
       app_role: ["admin", "supervisor", "technician", "manager"],
       asset_category: ["Vehicles", "Equipment", "Tools", "Facilities"],
       asset_status: ["Active", "Maintenance", "Inactive"],
+      company_name: ["Unifruit", "Limnia", "HRC", "Other"],
       completion_status: ["pending_confirmation", "confirmed"],
       maintenance_type_enum: [
         "Service",

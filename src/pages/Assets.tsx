@@ -33,6 +33,7 @@ type Asset = {
   name: string;
   description: string | null;
   category: string;
+  company: 'Unifruit' | 'Limnia' | 'HRC' | 'Other';
   status: string;
   assigned_to: string | null;
   last_service: string | null;
@@ -167,7 +168,12 @@ export default function Assets() {
                         <Package className="w-6 h-6 text-primary" />
                       </div>
                       <div>
-                        <h4 className="font-semibold text-foreground">{asset.name}</h4>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-semibold text-foreground">{asset.name}</h4>
+                          <Badge variant="secondary" className="text-xs">
+                            {asset.company}
+                          </Badge>
+                        </div>
                         <p className="text-sm text-muted-foreground">ID: {asset.asset_id}</p>
                         {asset.description && (
                           <p className="text-sm text-muted-foreground mt-1">{asset.description}</p>
