@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Package, ClipboardList, Calendar, DollarSign, Users, LogOut, Store, CheckSquare, Menu, BarChart3 } from "lucide-react";
+import { Home, Package, ClipboardList, Calendar, DollarSign, Users, LogOut, Store, CheckSquare, Menu, BarChart3, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,6 +25,7 @@ const adminOnlyNavigation = [
   { name: "Asset Approvals", href: "/assets/approvals", icon: CheckSquare },
   { name: "Task Approvals", href: "/tasks/approvals", icon: CheckSquare },
   { name: "Vendor Approvals", href: "/vendors/approvals", icon: CheckSquare },
+  { name: "Settings", href: "/settings", icon: Settings },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {

@@ -23,6 +23,7 @@ import VendorApprovals from "./pages/VendorApprovals";
 import SetupAdmin from "./pages/SetupAdmin";
 import NotFound from "./pages/NotFound";
 import Reports from "./pages/Reports";
+import Settings from "./pages/Settings";
 import Install from "./pages/Install";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -56,6 +57,11 @@ const App = () => (
           <Route path="/reports" element={
             <ProtectedRoute requireAdmin={true}>
               <Reports />
+            </ProtectedRoute>
+          } />
+          <Route path="/settings" element={
+            <ProtectedRoute requireAdmin={true}>
+              <Settings />
             </ProtectedRoute>
           } />
           <Route path="/install" element={<Install />} />

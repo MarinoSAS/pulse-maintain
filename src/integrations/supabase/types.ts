@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      asset_categories: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          icon: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       assets: {
         Row: {
           approval_status: string | null
@@ -97,6 +124,42 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      category_maintenance_types: {
+        Row: {
+          asset_category_id: string | null
+          created_at: string | null
+          id: string
+          maintenance_type_id: string | null
+        }
+        Insert: {
+          asset_category_id?: string | null
+          created_at?: string | null
+          id?: string
+          maintenance_type_id?: string | null
+        }
+        Update: {
+          asset_category_id?: string | null
+          created_at?: string | null
+          id?: string
+          maintenance_type_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "category_maintenance_types_asset_category_id_fkey"
+            columns: ["asset_category_id"]
+            isOneToOne: false
+            referencedRelation: "asset_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "category_maintenance_types_maintenance_type_id_fkey"
+            columns: ["maintenance_type_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_types"
             referencedColumns: ["id"]
           },
         ]
@@ -360,6 +423,30 @@ export type Database = {
           },
         ]
       }
+      maintenance_types: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -582,6 +669,30 @@ export type Database = {
         }
         Relationships: []
       }
+      vendor_types: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       vendors: {
         Row: {
           address: string | null
@@ -598,6 +709,7 @@ export type Database = {
           phone: string | null
           rejection_reason: string | null
           updated_at: string
+          vendor_type_id: string | null
         }
         Insert: {
           address?: string | null
@@ -614,6 +726,7 @@ export type Database = {
           phone?: string | null
           rejection_reason?: string | null
           updated_at?: string
+          vendor_type_id?: string | null
         }
         Update: {
           address?: string | null
@@ -630,6 +743,7 @@ export type Database = {
           phone?: string | null
           rejection_reason?: string | null
           updated_at?: string
+          vendor_type_id?: string | null
         }
         Relationships: [
           {
@@ -637,6 +751,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendors_vendor_type_id_fkey"
+            columns: ["vendor_type_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_types"
             referencedColumns: ["id"]
           },
         ]

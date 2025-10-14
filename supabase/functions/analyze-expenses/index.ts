@@ -203,7 +203,7 @@ Focus on maintenance-specific insights (equipment failures, seasonal patterns, v
   } catch (error) {
     console.error("Error in analyze-expenses:", error);
     
-    const errorMessage = error.message || "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     const status = errorMessage === "RATE_LIMIT_EXCEEDED" ? 429 :
                    errorMessage === "PAYMENT_REQUIRED" ? 402 :
                    errorMessage.includes("Admin") ? 403 : 500;
