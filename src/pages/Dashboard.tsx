@@ -2,13 +2,42 @@ import { Layout } from "@/components/Layout";
 import { StatCard } from "@/components/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Package, AlertCircle, CheckCircle, Clock, Wrench, TrendingUp, BarChart3 } from "lucide-react";
+import { Package, AlertCircle, CheckCircle, Clock, Wrench, TrendingUp, BarChart3, CalendarClock } from "lucide-react";
 import { MaintenanceAlerts } from "@/components/MaintenanceAlerts";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { format } from "date-fns";
+import { toast } from "@/hooks/use-toast";
+
+interface MaintenanceSchedule {
+  id: string;
+  maintenance_type: string;
+  scheduled_date: string;
+  due_by_date: string | null;
+  completed: boolean;
+  assets: {
+    name: string;
+    asset_id: string;
+  } | null;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  status: 'To Do' | 'In Progress' | 'Done';
+  created_at: string;
+  updated_at: string;
+  assignee: {
+    full_name: string;
+  } | null;
+  asset: {
+    name: string;
+  } | null;
+}
 
 export default function Dashboard() {
   const { isAdmin } = useUserRole();
@@ -20,13 +49,30 @@ export default function Dashboard() {
     monthlyExpenses: 0
   });
   const [loading, setLoading] = useState(true);
+  const [upcomingMaintenance, setUpcomingMaintenance] = useState<MaintenanceSchedule[]>([]);
+  const [recentTasks, setRecentTasks] = useState<Task[]>([]);
+  const [maintenanceLoading, setMaintenanceLoading] = useState(true);
+  const [tasksLoading, setTasksLoading] = useState(true);
   
   useEffect(() => {
     loadDashboardData();
   }, []);
 
+  const getMaintenanceUrgency = (scheduledDate: string) => {
+    const today = new Date();
+    const scheduled = new Date(scheduledDate);
+    const daysUntil = Math.ceil((scheduled.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysUntil <= 3) return { status: 'urgent', label: 'Urgent' };
+    if (daysUntil <= 7) return { status: 'soon', label: 'Soon' };
+    return { status: 'scheduled', label: 'Scheduled' };
+  };
+
   const loadDashboardData = async () => {
     setLoading(true);
+    setMaintenanceLoading(true);
+    setTasksLoading(true);
+    
     try {
       // Load assets count
       const { data: assets } = await supabase
@@ -61,24 +107,83 @@ export default function Dashboard() {
         completedThisMonth: completedTasks?.length || 0,
         monthlyExpenses: totalExpenses
       });
+
+      // Load upcoming maintenance
+      const { data: maintenanceData, error: maintenanceError } = await supabase
+        .from("maintenance_schedules")
+        .select(`
+          id,
+          maintenance_type,
+          scheduled_date,
+          due_by_date,
+          completed,
+          assets:asset_id (
+            name,
+            asset_id
+          )
+        `)
+        .eq("completed", false)
+        .gte("scheduled_date", new Date().toISOString().split('T')[0])
+        .order("scheduled_date", { ascending: true })
+        .limit(5);
+
+      if (maintenanceError) throw maintenanceError;
+      setUpcomingMaintenance(maintenanceData || []);
+
+      // Load recent tasks
+      const { data: tasksData, error: tasksError } = await supabase
+        .from("tasks")
+        .select(`
+          id,
+          title,
+          status,
+          created_at,
+          updated_at,
+          assigned_to,
+          asset:asset_id (
+            name
+          )
+        `)
+        .eq("approval_status", "approved")
+        .order("updated_at", { ascending: false })
+        .limit(5);
+
+      // Fetch assignee names separately
+      const tasksWithAssignees = await Promise.all(
+        (tasksData || []).map(async (task) => {
+          if (task.assigned_to) {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("full_name")
+              .eq("id", task.assigned_to)
+              .single();
+            
+            return {
+              ...task,
+              assignee: profile ? { full_name: profile.full_name } : null
+            };
+          }
+          return { ...task, assignee: null };
+        })
+      );
+
+      if (tasksError) throw tasksError;
+      setRecentTasks(tasksWithAssignees || []);
+      
     } catch (error) {
       console.error("Error loading dashboard data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load dashboard data. Please refresh the page.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
+      setMaintenanceLoading(false);
+      setTasksLoading(false);
     }
   };
 
-  const upcomingMaintenance = [
-    { id: 1, asset: "Forklift FL-001", type: "Annual Service", date: "2025-10-15", status: "urgent" },
-    { id: 2, asset: "Van V-003", type: "Oil Change", date: "2025-10-18", status: "soon" },
-    { id: 3, asset: "Cold Room CR-A", type: "Refrigerant Check", date: "2025-10-20", status: "scheduled" },
-  ];
-
-  const recentTasks = [
-    { id: 1, title: "Replace brake pads - FL-002", assignee: "John Smith", status: "completed" },
-    { id: 2, title: "Clean air filters - Office A", assignee: "Sarah Jones", status: "in-progress" },
-    { id: 3, title: "Inspect hydraulics - HL-005", assignee: "Mike Johnson", status: "pending" },
-  ];
 
   return (
     <Layout>
@@ -149,66 +254,131 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Upcoming Maintenance */}
           <Card className="shadow-md bg-gradient-card">
-            <CardHeader className="border-b border-border">
+            <CardHeader className="border-b border-border flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-foreground">
                 <AlertCircle className="w-5 h-5 text-warning" />
                 Upcoming Maintenance
               </CardTitle>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => navigate('/maintenance')}
+              >
+                View All
+              </Button>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="space-y-4">
-                {upcomingMaintenance.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-start justify-between p-4 rounded-lg border border-border bg-background/50 hover:bg-background transition-colors"
+              {maintenanceLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-20 w-full" />
+                  ))}
+                </div>
+              ) : upcomingMaintenance.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <CalendarClock className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p className="mb-2">No upcoming maintenance scheduled</p>
+                  <Button 
+                    variant="link" 
+                    onClick={() => navigate('/maintenance')}
+                    className="mt-2"
                   >
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-foreground">{item.asset}</h4>
-                      <p className="text-sm text-muted-foreground mt-1">{item.type}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{item.date}</p>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      item.status === 'urgent' ? 'bg-destructive/10 text-destructive' :
-                      item.status === 'soon' ? 'bg-warning/10 text-warning' :
-                      'bg-success/10 text-success'
-                    }`}>
-                      {item.status === 'urgent' ? 'Urgent' : item.status === 'soon' ? 'Soon' : 'Scheduled'}
-                    </span>
-                  </div>
-                ))}
-              </div>
+                    Schedule Maintenance
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {upcomingMaintenance.map((item) => {
+                    const urgency = getMaintenanceUrgency(item.scheduled_date);
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={() => navigate('/maintenance')}
+                        className="flex items-start justify-between p-4 rounded-lg border border-border bg-background/50 hover:bg-background transition-colors cursor-pointer"
+                      >
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-foreground">
+                            {item.assets?.name || 'Unknown Asset'}
+                          </h4>
+                          <p className="text-sm text-muted-foreground mt-1">{item.maintenance_type}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {format(new Date(item.scheduled_date), 'MMM dd, yyyy')}
+                          </p>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          urgency.status === 'urgent' ? 'bg-destructive/10 text-destructive' :
+                          urgency.status === 'soon' ? 'bg-warning/10 text-warning' :
+                          'bg-success/10 text-success'
+                        }`}>
+                          {urgency.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
 
           {/* Recent Tasks */}
           <Card className="shadow-md bg-gradient-card">
-            <CardHeader className="border-b border-border">
+            <CardHeader className="border-b border-border flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-foreground">
                 <Wrench className="w-5 h-5 text-primary" />
                 Recent Tasks
               </CardTitle>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => navigate('/tasks')}
+              >
+                View All
+              </Button>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="space-y-4">
-                {recentTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="flex items-start justify-between p-4 rounded-lg border border-border bg-background/50 hover:bg-background transition-colors"
+              {tasksLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-20 w-full" />
+                  ))}
+                </div>
+              ) : recentTasks.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Wrench className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p className="mb-2">No tasks yet</p>
+                  <Button 
+                    variant="link" 
+                    onClick={() => navigate('/tasks')}
+                    className="mt-2"
                   >
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-foreground">{task.title}</h4>
-                      <p className="text-sm text-muted-foreground mt-1">Assigned to: {task.assignee}</p>
+                    View Tasks
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {recentTasks.map((task) => (
+                    <div
+                      key={task.id}
+                      onClick={() => navigate('/tasks')}
+                      className="flex items-start justify-between p-4 rounded-lg border border-border bg-background/50 hover:bg-background transition-colors cursor-pointer"
+                    >
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-foreground">{task.title}</h4>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {task.assignee?.full_name ? `Assigned to: ${task.assignee.full_name}` : 'Unassigned'}
+                        </p>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        task.status === 'Done' ? 'bg-success/10 text-success' :
+                        task.status === 'In Progress' ? 'bg-warning/10 text-warning' :
+                        'bg-muted text-muted-foreground'
+                      }`}>
+                        {task.status}
+                      </span>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      task.status === 'completed' ? 'bg-success/10 text-success' :
-                      task.status === 'in-progress' ? 'bg-warning/10 text-warning' :
-                      'bg-muted text-muted-foreground'
-                    }`}>
-                      {task.status === 'completed' ? 'Completed' : task.status === 'in-progress' ? 'In Progress' : 'Pending'}
-                    </span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
