@@ -2,10 +2,72 @@ import { Layout } from "@/components/Layout";
 import { StatCard } from "@/components/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Package, AlertCircle, CheckCircle, Clock, Wrench, TrendingUp } from "lucide-react";
+import { Package, AlertCircle, CheckCircle, Clock, Wrench, TrendingUp, BarChart3 } from "lucide-react";
 import { MaintenanceAlerts } from "@/components/MaintenanceAlerts";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useUserRole } from "@/hooks/useUserRole";
+import { useNavigate } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 
 export default function Dashboard() {
+  const { isAdmin } = useUserRole();
+  const navigate = useNavigate();
+  const [stats, setStats] = useState({
+    totalAssets: 0,
+    pendingTasks: 0,
+    completedThisMonth: 0,
+    monthlyExpenses: 0
+  });
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    setLoading(true);
+    try {
+      // Load assets count
+      const { data: assets } = await supabase
+        .from("assets")
+        .select("id", { count: "exact", head: true });
+      
+      // Load pending tasks
+      const { data: tasks } = await supabase
+        .from("tasks")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "To Do");
+      
+      // Load completed tasks this month
+      const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+      const { data: completedTasks } = await supabase
+        .from("tasks")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "Done")
+        .gte("updated_at", firstDayOfMonth);
+      
+      // Load monthly expenses
+      const { data: expenses } = await supabase
+        .from("expenses")
+        .select("amount")
+        .gte("date", firstDayOfMonth);
+      
+      const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+      
+      setStats({
+        totalAssets: assets?.length || 0,
+        pendingTasks: tasks?.length || 0,
+        completedThisMonth: completedTasks?.length || 0,
+        monthlyExpenses: totalExpenses
+      });
+    } catch (error) {
+      console.error("Error loading dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const upcomingMaintenance = [
     { id: 1, asset: "Forklift FL-001", type: "Annual Service", date: "2025-10-15", status: "urgent" },
     { id: 2, asset: "Van V-003", type: "Oil Change", date: "2025-10-18", status: "soon" },
@@ -37,30 +99,54 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
             title="Total Assets"
-            value={47}
+            value={loading ? "..." : stats.totalAssets}
             icon={Package}
-            trend={{ value: "5 this month", isPositive: true }}
           />
           <StatCard
             title="Pending Tasks"
-            value={12}
+            value={loading ? "..." : stats.pendingTasks}
             icon={Clock}
             variant="warning"
           />
           <StatCard
             title="Completed This Month"
-            value={28}
+            value={loading ? "..." : stats.completedThisMonth}
             icon={CheckCircle}
             variant="success"
-            trend={{ value: "15% increase", isPositive: true }}
           />
           <StatCard
             title="Monthly Expenses"
-            value="$8,450"
+            value={loading ? "..." : `$${stats.monthlyExpenses.toLocaleString()}`}
             icon={TrendingUp}
             variant="accent"
           />
         </div>
+
+        {/* Admin Reports Button */}
+        {isAdmin && (
+          <Card className="bg-gradient-accent border-primary/20">
+            <CardContent className="p-6">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5" />
+                    Advanced Reports & Analytics
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    View detailed expense reports with AI-powered insights
+                  </p>
+                </div>
+                <Button 
+                  onClick={() => navigate('/reports')}
+                  className="shadow-md hover:shadow-lg transition-all"
+                >
+                  View Full Reports
+                  <Badge variant="secondary" className="ml-2">Admin</Badge>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Maintenance Alerts */}
         <MaintenanceAlerts />

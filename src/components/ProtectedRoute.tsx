@@ -2,10 +2,18 @@ import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
+import { useUserRole } from "@/hooks/useUserRole";
+import { toast } from "sonner";
 
-export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  requireAdmin?: boolean;
+}
+
+export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const { isAdmin, loading: roleLoading } = useUserRole();
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -25,7 +33,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  if (loading) {
+  if (loading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -35,6 +43,11 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!session) {
     return <Navigate to="/auth" replace />;
+  }
+
+  if (requireAdmin && !isAdmin) {
+    toast.error("Access denied. Admin privileges required.");
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;

@@ -22,6 +22,8 @@ import AssetApprovals from "./pages/AssetApprovals";
 import VendorApprovals from "./pages/VendorApprovals";
 import SetupAdmin from "./pages/SetupAdmin";
 import NotFound from "./pages/NotFound";
+import Reports from "./pages/Reports";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +52,11 @@ const App = () => (
           <Route path="/vendors/:id" element={<VendorDetail />} />
           <Route path="/vendors/approvals" element={<VendorApprovals />} />
           <Route path="/team" element={<Team />} />
+          <Route path="/reports" element={
+            <ProtectedRoute requireAdmin={true}>
+              <Reports />
+            </ProtectedRoute>
+          } />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
