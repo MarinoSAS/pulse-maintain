@@ -30,9 +30,30 @@ const adminOnlyNavigation = [
 export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { user, signOut } = useAuth();
-  const { isAdmin } = useUserRole();
+  const { isAdmin, isManager } = useUserRole();
   const isMobile = useIsMobile();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [userProfile, setUserProfile] = useState<{ full_name: string | null }>({ full_name: null });
+
+  useEffect(() => {
+    if (user) {
+      loadUserProfile();
+    }
+  }, [user]);
+
+  const loadUserProfile = async () => {
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.id)
+      .single();
+    
+    if (data) {
+      setUserProfile(data);
+    }
+  };
 
   // Expense and task completion notification system for admins
   useEffect(() => {
@@ -136,13 +157,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <div className="p-4 border-t border-sidebar-border">
         <div className="mb-3">
           <p className="text-xs text-sidebar-foreground/60">Logged in as</p>
-          <p className="text-sm font-medium truncate text-sidebar-foreground">{user?.email}</p>
+          <p className="text-sm font-medium truncate text-sidebar-foreground">
+            {userProfile?.full_name || user?.email}
+          </p>
+          {(isAdmin || isManager) && (
+            <div className="mt-1">
+              <span className={cn(
+                "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium",
+                isAdmin 
+                  ? "bg-red-500/10 text-red-500 border border-red-500/20" 
+                  : "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+              )}>
+                {isAdmin ? "Admin" : "Manager"}
+              </span>
+            </div>
+          )}
         </div>
         <Button
           onClick={signOut}
-          variant="outline"
+          variant="ghost"
           size="sm"
-          className="w-full justify-start gap-2"
+          className="w-full justify-start gap-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         >
           <LogOut className="w-4 h-4" />
           Sign Out
