@@ -394,35 +394,35 @@ export default function Settings() {
 
   return (
     <Layout>
-      <div className="p-8 space-y-8">
+      <div className="p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6 lg:space-y-8">
         <div>
-          <h1 className="text-4xl font-bold">Settings</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold">Settings</h1>
+          <p className="text-sm md:text-base text-muted-foreground mt-2 md:mt-1">
             Manage asset categories, maintenance types, and vendor types
           </p>
         </div>
 
-        <Tabs defaultValue="asset-categories" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="asset-categories">Asset Categories</TabsTrigger>
-            <TabsTrigger value="maintenance-types">Maintenance Types</TabsTrigger>
-            <TabsTrigger value="vendor-types">Vendor Types</TabsTrigger>
+        <Tabs defaultValue="asset-categories" className="space-y-4 md:space-y-6">
+          <TabsList className="flex flex-col md:grid w-full md:grid-cols-3 h-auto md:h-10">
+            <TabsTrigger value="asset-categories" className="text-xs md:text-sm">Asset Categories</TabsTrigger>
+            <TabsTrigger value="maintenance-types" className="text-xs md:text-sm">Maintenance Types</TabsTrigger>
+            <TabsTrigger value="vendor-types" className="text-xs md:text-sm">Vendor Types</TabsTrigger>
           </TabsList>
 
           {/* Asset Categories Tab */}
           <TabsContent value="asset-categories" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <p className="text-sm text-muted-foreground">
+            <div className="flex flex-col gap-3 md:flex-row md:justify-between md:items-center">
+              <p className="text-xs md:text-sm text-muted-foreground">
                 Manage asset categories and their visual properties
               </p>
               <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button onClick={() => setEditingCategory(null)}>
+                  <Button onClick={() => setEditingCategory(null)} className="w-full md:w-auto">
                     <Plus className="w-4 h-4 mr-2" />
                     Add Category
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="w-[95vw] max-w-md">
                   <DialogHeader>
                     <DialogTitle>
                       {editingCategory ? "Edit Category" : "Add Category"}
@@ -472,7 +472,8 @@ export default function Settings() {
               </Dialog>
             </div>
 
-            <Card>
+            {/* Desktop Table */}
+            <Card className="hidden md:block">
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
@@ -525,22 +526,69 @@ export default function Settings() {
                 </Table>
               </CardContent>
             </Card>
+
+            {/* Mobile Card List */}
+            <div className="block md:hidden space-y-3">
+              {assetCategories.map((category) => (
+                <Card key={category.id} className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-medium">{category.name}</h3>
+                        <p className="text-sm text-muted-foreground">Icon: {category.icon || "-"}</p>
+                      </div>
+                      {category.color && (
+                        <Badge variant="outline">{category.color}</Badge>
+                      )}
+                    </div>
+                    <p className="text-sm">
+                      <span className="text-muted-foreground">Assets: </span>
+                      {category.asset_count || 0}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingCategory(category);
+                          setCategoryName(category.name);
+                          setCategoryIcon(category.icon || "");
+                          setCategoryColor(category.color || "");
+                          setCategoryDialogOpen(true);
+                        }}
+                        className="flex-1"
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setDeleteCategory(category)}
+                        className="flex-1"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
           </TabsContent>
 
           {/* Maintenance Types Tab */}
           <TabsContent value="maintenance-types" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <p className="text-sm text-muted-foreground">
+            <div className="flex flex-col gap-3 md:flex-row md:justify-between md:items-center">
+              <p className="text-xs md:text-sm text-muted-foreground">
                 Define maintenance types and link them to asset categories
               </p>
               <Dialog open={typeDialogOpen} onOpenChange={setTypeDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button onClick={() => setEditingType(null)}>
+                  <Button onClick={() => setEditingType(null)} className="w-full md:w-auto">
                     <Plus className="w-4 h-4 mr-2" />
                     Add Type
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-h-[90vh] overflow-y-auto">
+                <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>
                       {editingType ? "Edit Maintenance Type" : "Add Maintenance Type"}
@@ -609,7 +657,8 @@ export default function Settings() {
               </Dialog>
             </div>
 
-            <Card>
+            {/* Desktop Table */}
+            <Card className="hidden md:block">
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
@@ -656,22 +705,68 @@ export default function Settings() {
                 </Table>
               </CardContent>
             </Card>
+
+            {/* Mobile Card List */}
+            <div className="block md:hidden space-y-3">
+              {maintenanceTypes.map((type) => (
+                <Card key={type.id} className="p-4">
+                  <div className="space-y-3">
+                    <div>
+                      <h3 className="font-medium">{type.name}</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {type.description || "No description"}
+                      </p>
+                    </div>
+                    {type.categories && type.categories.length > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Categories:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {type.categories.map((cat) => (
+                            <Badge key={cat.id} variant="secondary">
+                              {cat.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openEditType(type)}
+                        className="flex-1"
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setDeleteType(type)}
+                        className="flex-1"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
           </TabsContent>
 
           {/* Vendor Types Tab */}
           <TabsContent value="vendor-types" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <p className="text-sm text-muted-foreground">
+            <div className="flex flex-col gap-3 md:flex-row md:justify-between md:items-center">
+              <p className="text-xs md:text-sm text-muted-foreground">
                 Manage vendor types and categorizations
               </p>
               <Dialog open={vendorTypeDialogOpen} onOpenChange={setVendorTypeDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button onClick={() => setEditingVendorType(null)}>
+                  <Button onClick={() => setEditingVendorType(null)} className="w-full md:w-auto">
                     <Plus className="w-4 h-4 mr-2" />
                     Add Vendor Type
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="w-[95vw] max-w-md">
                   <DialogHeader>
                     <DialogTitle>
                       {editingVendorType ? "Edit Vendor Type" : "Add Vendor Type"}
@@ -712,7 +807,8 @@ export default function Settings() {
               </Dialog>
             </div>
 
-            <Card>
+            {/* Desktop Table */}
+            <Card className="hidden md:block">
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
@@ -756,6 +852,49 @@ export default function Settings() {
                 </Table>
               </CardContent>
             </Card>
+
+            {/* Mobile Card List */}
+            <div className="block md:hidden space-y-3">
+              {vendorTypes.map((vendorType) => (
+                <Card key={vendorType.id} className="p-4">
+                  <div className="space-y-3">
+                    <div>
+                      <h3 className="font-medium">{vendorType.name}</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {vendorType.description || "No description"}
+                      </p>
+                    </div>
+                    <p className="text-sm">
+                      <span className="text-muted-foreground">Vendors: </span>
+                      {vendorType.vendor_count || 0}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingVendorType(vendorType);
+                          setVendorTypeName(vendorType.name);
+                          setVendorTypeDescription(vendorType.description || "");
+                          setVendorTypeDialogOpen(true);
+                        }}
+                        className="flex-1"
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setDeleteVendorType(vendorType)}
+                        className="flex-1"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
           </TabsContent>
         </Tabs>
 
