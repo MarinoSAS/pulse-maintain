@@ -401,8 +401,12 @@ export type Database = {
           approval_status: string | null
           approved_at: string | null
           approved_by: string | null
+          approximate_cost: number | null
           asset_id: string | null
+          assigned_team_members: string[] | null
           assigned_to: string | null
+          assigned_vendors: string[] | null
+          company: Database["public"]["Enums"]["company_name"] | null
           completion_comments: string | null
           completion_confirmed_at: string | null
           completion_confirmed_by: string | null
@@ -415,6 +419,7 @@ export type Database = {
           due_date: string | null
           id: string
           is_issue_report: boolean | null
+          maintenance_type: string | null
           priority: Database["public"]["Enums"]["task_priority"]
           rejection_reason: string | null
           status: Database["public"]["Enums"]["task_status"]
@@ -425,8 +430,12 @@ export type Database = {
           approval_status?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          approximate_cost?: number | null
           asset_id?: string | null
+          assigned_team_members?: string[] | null
           assigned_to?: string | null
+          assigned_vendors?: string[] | null
+          company?: Database["public"]["Enums"]["company_name"] | null
           completion_comments?: string | null
           completion_confirmed_at?: string | null
           completion_confirmed_by?: string | null
@@ -439,6 +448,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           is_issue_report?: boolean | null
+          maintenance_type?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           rejection_reason?: string | null
           status?: Database["public"]["Enums"]["task_status"]
@@ -449,8 +459,12 @@ export type Database = {
           approval_status?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          approximate_cost?: number | null
           asset_id?: string | null
+          assigned_team_members?: string[] | null
           assigned_to?: string | null
+          assigned_vendors?: string[] | null
+          company?: Database["public"]["Enums"]["company_name"] | null
           completion_comments?: string | null
           completion_confirmed_at?: string | null
           completion_confirmed_by?: string | null
@@ -463,6 +477,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           is_issue_report?: boolean | null
+          maintenance_type?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           rejection_reason?: string | null
           status?: Database["public"]["Enums"]["task_status"]

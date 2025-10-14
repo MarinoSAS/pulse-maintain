@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Clock, AlertCircle, Trash2 } from "lucide-react";
+import { TaskForm } from "@/components/TaskForm";
+import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,35 +31,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-
-const taskSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string().optional(),
-  priority: z.enum(["Low", "Medium", "High", "Urgent"]),
-  assignedTo: z.string().optional(),
-  dueDate: z.string().optional(),
-  assetId: z.string().optional(),
-});
 
 type Task = {
   id: string;
@@ -82,8 +55,6 @@ type Task = {
 export default function Tasks() {
   const [open, setOpen] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [teamMembers, setTeamMembers] = useState<any[]>([]);
-  const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -94,22 +65,8 @@ export default function Tasks() {
   const navigate = useNavigate();
   const isRegularUser = role !== 'admin' && role !== 'manager';
 
-  const form = useForm<z.infer<typeof taskSchema>>({
-    resolver: zodResolver(taskSchema),
-    defaultValues: {
-      title: "",
-      description: "",
-      priority: "Medium",
-      assignedTo: "",
-      dueDate: "",
-      assetId: "",
-    },
-  });
-
   useEffect(() => {
     loadTasks();
-    loadTeamMembers();
-    loadAssets();
     if (role === 'admin' || role === 'manager') {
       loadPendingCount();
     }
@@ -156,76 +113,11 @@ export default function Tasks() {
     }
   };
 
-  const loadAssets = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("assets")
-        .select("*")
-        .order("name");
-
-      if (error) throw error;
-      setAssets(data || []);
-    } catch (error: any) {
-      console.error("Failed to load assets:", error);
-    }
-  };
-
-  const loadTeamMembers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("team_members")
-        .select("*")
-        .order("name");
-
-      if (error) throw error;
-      setTeamMembers(data || []);
-    } catch (error: any) {
-      console.error("Failed to load team members:", error);
-    }
-  };
-
-  const onSubmit = async (values: z.infer<typeof taskSchema>) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      const taskData: any = {
-        title: values.title,
-        description: values.description || null,
-        priority: values.priority,
-        status: "To Do",
-        created_by: user?.id,
-        asset_id: values.assetId || null,
-      };
-
-      // If regular user, mark as issue report pending approval
-      if (isRegularUser) {
-        taskData.is_issue_report = true;
-        taskData.approval_status = 'pending';
-      } else {
-        // Admin/Manager can create approved tasks and assign them
-        taskData.approval_status = 'approved';
-        taskData.assigned_to = values.assignedTo || null;
-        taskData.due_date = values.dueDate || null;
-      }
-
-      const { error } = await supabase.from("tasks").insert(taskData);
-
-      if (error) throw error;
-
-      if (isRegularUser) {
-        toast.success("Issue report submitted for approval!");
-      } else {
-        toast.success("Task created successfully!");
-      }
-      
-      form.reset();
-      setOpen(false);
-      loadTasks();
-      if (role === 'admin' || role === 'manager') {
-        loadPendingCount();
-      }
-    } catch (error: any) {
-      toast.error(error.message || "Failed to create task");
+  const handleTaskFormSuccess = () => {
+    setOpen(false);
+    loadTasks();
+    if (role === 'admin' || role === 'manager') {
+      loadPendingCount();
     }
   };
 
@@ -524,7 +416,7 @@ export default function Tasks() {
                 </Button>
               )}
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{isRegularUser ? "Report Maintenance Issue" : "Create New Task"}</DialogTitle>
                 <DialogDescription>
@@ -533,132 +425,11 @@ export default function Tasks() {
                     : "Add a new maintenance task"}
                 </DialogDescription>
               </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="title"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Task Title</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Replace brake pads" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description (Optional)</FormLabel>
-                        <FormControl>
-                          <Textarea placeholder="Task details..." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="assetId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Asset (Optional)</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select related asset" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {assets.map((asset) => (
-                              <SelectItem key={asset.id} value={asset.id}>
-                                {asset.name} ({asset.asset_id})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="priority"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{isRegularUser ? "Urgency" : "Priority"}</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Low">Low</SelectItem>
-                            <SelectItem value="Medium">Medium</SelectItem>
-                            <SelectItem value="High">High</SelectItem>
-                            <SelectItem value="Urgent">Urgent</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  {!isRegularUser && (
-                    <>
-                      <FormField
-                        control={form.control}
-                        name="assignedTo"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Assign To (Optional)</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select team member" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {teamMembers.map((member) => (
-                                  <SelectItem key={member.id} value={member.id}>
-                                    {member.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="dueDate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Due Date (Optional)</FormLabel>
-                            <FormControl>
-                              <Input type="date" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </>
-                  )}
-                  <div className="flex justify-end gap-3 pt-4">
-                    <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" className="bg-gradient-accent">
-                      {isRegularUser ? "Submit Report" : "Create Task"}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
+              <TaskForm 
+                onSuccess={handleTaskFormSuccess}
+                onCancel={() => setOpen(false)}
+                isRegularUser={isRegularUser}
+              />
             </DialogContent>
           </Dialog>
         </div>
