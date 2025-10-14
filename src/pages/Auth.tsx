@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { toast } from "sonner";
-import { Package } from "lucide-react";
+import iconImage from "/icon-192.png";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -61,9 +61,7 @@ export default function Auth() {
       <Card className="w-full max-w-md shadow-elegant">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 rounded-xl bg-gradient-accent flex items-center justify-center">
-              <Package className="w-8 h-8 text-white" />
-            </div>
+            <img src={iconImage} alt="MaintenancePro" className="w-20 h-20" />
           </div>
           <CardTitle className="text-3xl font-bold">MaintenancePro</CardTitle>
           <CardDescription>Maintenance Department Management Platform</CardDescription>
