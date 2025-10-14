@@ -40,7 +40,7 @@ interface Task {
 }
 
 export default function Dashboard() {
-  const { isAdmin } = useUserRole();
+  const { isAdmin, isManager } = useUserRole();
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalAssets: 0,
@@ -213,12 +213,14 @@ export default function Dashboard() {
             icon={CheckCircle}
             variant="success"
           />
-          <StatCard
-            title="Monthly Expenses"
-            value={loading ? "..." : `$${stats.monthlyExpenses.toLocaleString()}`}
-            icon={TrendingUp}
-            variant="accent"
-          />
+          {!isManager && (
+            <StatCard
+              title="Monthly Expenses"
+              value={loading ? "..." : `$${stats.monthlyExpenses.toLocaleString()}`}
+              icon={TrendingUp}
+              variant="accent"
+            />
+          )}
         </div>
 
         {/* Admin Reports Button */}
