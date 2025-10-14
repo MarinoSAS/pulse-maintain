@@ -23,6 +23,7 @@ import VendorApprovals from "./pages/VendorApprovals";
 import SetupAdmin from "./pages/SetupAdmin";
 import NotFound from "./pages/NotFound";
 import Reports from "./pages/Reports";
+import Install from "./pages/Install";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -57,6 +58,7 @@ const App = () => (
               <Reports />
             </ProtectedRoute>
           } />
+          <Route path="/install" element={<Install />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
