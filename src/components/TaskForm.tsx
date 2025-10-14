@@ -246,14 +246,13 @@ export function TaskForm({ onSuccess, onCancel, isRegularUser }: TaskFormProps) 
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Company (Optional)</FormLabel>
-                <Select onValueChange={handleCompanyChange} value={field.value}>
+                <Select onValueChange={handleCompanyChange} value={field.value || undefined}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="All companies" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">All companies</SelectItem>
                     <SelectItem value="Unifruit">Unifruit</SelectItem>
                     <SelectItem value="Limnia">Limnia</SelectItem>
                     <SelectItem value="HRC">HRC</SelectItem>
