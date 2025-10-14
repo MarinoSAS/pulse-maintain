@@ -256,16 +256,16 @@ export default function Team() {
 
   return (
     <Layout>
-      <div className="p-8 space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-foreground">Team Management</h1>
-            <p className="text-muted-foreground mt-1">Manage your team members and invitations</p>
+      <div className="p-4 md:p-8 space-y-6 md:space-y-8">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex-1">
+            <h1 className="text-2xl md:text-4xl font-bold text-foreground">Team Management</h1>
+            <p className="text-muted-foreground mt-1 text-sm md:text-base">Manage your team members and invitations</p>
           </div>
           {isAdmin && (
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
-                <Button className="bg-gradient-accent shadow-md hover:shadow-lg">
+                <Button className="bg-gradient-accent shadow-md hover:shadow-lg w-full md:w-auto">
                   <Plus className="w-4 h-4 mr-2" />
                   Invite Member
                 </Button>

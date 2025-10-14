@@ -119,15 +119,15 @@ export default function Vendors() {
 
   return (
     <Layout>
-      <div className="p-8 space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-foreground">Vendors</h1>
-            <p className="text-muted-foreground mt-1">Manage service providers and track payments</p>
+      <div className="p-4 md:p-8 space-y-6 md:space-y-8">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex-1">
+            <h1 className="text-2xl md:text-4xl font-bold text-foreground">Vendors</h1>
+            <p className="text-muted-foreground mt-1 text-sm md:text-base">Manage service providers and track payments</p>
           </div>
           <Button 
             onClick={() => navigate("/vendors/new")}
-            className="bg-gradient-accent shadow-md hover:shadow-lg"
+            className="bg-gradient-accent shadow-md hover:shadow-lg w-full md:w-auto"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Vendor
@@ -197,7 +197,7 @@ export default function Vendors() {
 
         {/* Vendors Table */}
         <Card className="shadow-md bg-gradient-card">
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <h2 className="text-xl font-bold mb-6">All Vendors</h2>
             {loading ? (
               <div className="text-center py-8">Loading vendors...</div>
@@ -206,60 +206,65 @@ export default function Vendors() {
                 No vendors yet. Add your first vendor using the button above.
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Vendor Name</TableHead>
-                    <TableHead>Contact Person</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead className="text-right">Total Paid</TableHead>
-                    <TableHead className="text-center"># Expenses</TableHead>
-                    <TableHead>Last Payment</TableHead>
-                    {isAdmin && <TableHead className="w-[50px]"></TableHead>}
-                  </TableRow>
-                </TableHeader>
+              <div className="overflow-x-auto -mx-4 md:mx-0">
+                <Table>
+                  <TableHeader className="hidden md:table-header-group">
+                    <TableRow>
+                      <TableHead>Vendor Name</TableHead>
+                      <TableHead>Contact Person</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead className="text-right">Total Paid</TableHead>
+                      <TableHead className="text-center"># Expenses</TableHead>
+                      <TableHead>Last Payment</TableHead>
+                      {isAdmin && <TableHead className="w-[50px]"></TableHead>}
+                    </TableRow>
+                  </TableHeader>
                 <TableBody>
                  {vendors.map((vendor) => (
                   <TableRow 
                     key={vendor.id}
-                    className="group hover:bg-accent/5"
+                    className="group hover:bg-accent/5 flex flex-col md:table-row border-b md:border-0"
                   >
                     <TableCell 
-                      className="font-semibold cursor-pointer"
+                      className="font-semibold cursor-pointer block md:table-cell"
                       onClick={() => navigate(`/vendors/${vendor.id}`)}
                     >
+                      <div className="md:hidden text-xs text-muted-foreground mb-1">Vendor</div>
                       {vendor.name}
                     </TableCell>
-                    <TableCell onClick={() => navigate(`/vendors/${vendor.id}`)} className="cursor-pointer">
+                    <TableCell onClick={() => navigate(`/vendors/${vendor.id}`)} className="cursor-pointer hidden md:table-cell">
                       {vendor.contact_person || "—"}
                     </TableCell>
-                    <TableCell onClick={() => navigate(`/vendors/${vendor.id}`)} className="cursor-pointer">
+                    <TableCell onClick={() => navigate(`/vendors/${vendor.id}`)} className="cursor-pointer hidden md:table-cell">
                       {vendor.email || "—"}
                     </TableCell>
-                    <TableCell onClick={() => navigate(`/vendors/${vendor.id}`)} className="cursor-pointer">
+                    <TableCell onClick={() => navigate(`/vendors/${vendor.id}`)} className="cursor-pointer hidden md:table-cell">
                       {vendor.phone || "—"}
                     </TableCell>
                     <TableCell 
                       onClick={() => navigate(`/vendors/${vendor.id}`)}
-                      className="text-right font-bold text-accent cursor-pointer"
+                      className="text-left md:text-right font-bold text-accent cursor-pointer block md:table-cell"
                     >
+                      <div className="md:hidden text-xs text-muted-foreground mb-1">Total Paid</div>
                       ${vendor.totalPaid.toFixed(2)}
                     </TableCell>
-                    <TableCell onClick={() => navigate(`/vendors/${vendor.id}`)} className="text-center cursor-pointer">
+                    <TableCell onClick={() => navigate(`/vendors/${vendor.id}`)} className="text-left md:text-center cursor-pointer block md:table-cell">
+                      <div className="md:hidden text-xs text-muted-foreground mb-1">Expenses</div>
                       <Badge variant="outline">{vendor.expenseCount}</Badge>
                     </TableCell>
-                    <TableCell onClick={() => navigate(`/vendors/${vendor.id}`)} className="cursor-pointer">
+                    <TableCell onClick={() => navigate(`/vendors/${vendor.id}`)} className="cursor-pointer hidden md:table-cell">
                       {vendor.lastPaymentDate 
                         ? new Date(vendor.lastPaymentDate).toLocaleDateString()
                         : "—"}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="block md:table-cell">
                       {isAdmin && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Trash2 className="w-4 h-4" />
+                            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity w-full md:w-auto">
+                              <Trash2 className="w-4 h-4 md:mr-0 mr-2" />
+                              <span className="md:hidden">Delete</span>
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
@@ -288,9 +293,10 @@ export default function Vendors() {
                       )}
                     </TableCell>
                   </TableRow>
-                ))}
+                 ))}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>

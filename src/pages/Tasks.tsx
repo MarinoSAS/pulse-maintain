@@ -495,18 +495,18 @@ export default function Tasks() {
           </Card>
         )}
 
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           {roleLoading ? (
             <div className="flex-1">
-              <Skeleton className="h-10 w-56 mb-2" />
-              <Skeleton className="h-5 w-72" />
+              <Skeleton className="h-8 md:h-10 w-48 md:w-56 mb-2" />
+              <Skeleton className="h-4 md:h-5 w-64 md:w-72" />
             </div>
           ) : (
-            <div>
-              <h1 className="text-4xl font-bold text-foreground">
+            <div className="flex-1">
+              <h1 className="text-2xl md:text-4xl font-bold text-foreground">
                 {isRegularUser ? "Report Issue" : "Task Management"}
               </h1>
-              <p className="text-muted-foreground mt-1">
+              <p className="text-muted-foreground mt-1 text-sm md:text-base">
                 {isRegularUser 
                   ? "Report maintenance issues that require attention" 
                   : "Assign and track maintenance tasks"}
@@ -516,9 +516,9 @@ export default function Tasks() {
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               {roleLoading ? (
-                <Skeleton className="h-10 w-36" />
+                <Skeleton className="h-10 w-full md:w-36" />
               ) : (
-                <Button className="bg-gradient-accent shadow-md hover:shadow-lg">
+                <Button className="bg-gradient-accent shadow-md hover:shadow-lg w-full md:w-auto">
                   <Plus className="w-4 h-4 mr-2" />
                   {isRegularUser ? "Report Issue" : "New Task"}
                 </Button>

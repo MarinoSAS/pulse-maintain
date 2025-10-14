@@ -84,15 +84,15 @@ export default function Expenses() {
 
   return (
     <Layout>
-      <div className="p-8 space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-foreground">Expense Tracking</h1>
-            <p className="text-muted-foreground mt-1">Monitor maintenance costs and invoices</p>
+      <div className="p-4 md:p-8 space-y-6 md:space-y-8">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex-1">
+            <h1 className="text-2xl md:text-4xl font-bold text-foreground">Expense Tracking</h1>
+            <p className="text-muted-foreground mt-1 text-sm md:text-base">Monitor maintenance costs and invoices</p>
           </div>
           <Button 
             onClick={() => navigate("/expenses/new")}
-            className="bg-gradient-accent shadow-md hover:shadow-lg"
+            className="bg-gradient-accent shadow-md hover:shadow-lg w-full md:w-auto"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Expense
@@ -152,7 +152,7 @@ export default function Expenses() {
 
         {/* Expenses List */}
         <Card className="shadow-md bg-gradient-card">
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <h2 className="text-xl font-bold mb-6">All Expenses</h2>
             {loading ? (
               <div className="text-center py-8">Loading expenses...</div>
@@ -165,12 +165,12 @@ export default function Expenses() {
                  {expenses.map((expense) => (
                   <div
                     key={expense.id}
-                    className="flex items-center justify-between p-4 rounded-lg border border-border bg-background/50 hover:bg-background transition-colors group"
+                    className="flex flex-col md:flex-row md:items-center md:justify-between p-4 rounded-lg border border-border bg-background/50 hover:bg-background transition-colors group gap-4"
                   >
                     <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
                     <h4 className="font-semibold text-foreground">{expense.description}</h4>
-                    <Badge variant="outline">{expense.category}</Badge>
+                    <Badge variant="outline" className="text-xs">{expense.category}</Badge>
                     {expense.company && (
                       <Badge variant="secondary" className="text-xs">
                         {expense.company}
@@ -182,15 +182,15 @@ export default function Expenses() {
                           {expense.asset.name} ({expense.asset.asset_id})
                         </p>
                       )}
-                      <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                        {expense.invoice_number && <span>Invoice: {expense.invoice_number}</span>}
-                        {expense.vendor && <span>Vendor: {expense.vendor}</span>}
-                        <span>{expense.date}</span>
+                      <div className="flex flex-wrap items-center gap-2 md:gap-4 mt-2 text-sm text-muted-foreground">
+                        {expense.invoice_number && <span className="text-xs md:text-sm">Invoice: {expense.invoice_number}</span>}
+                        {expense.vendor && <span className="text-xs md:text-sm">Vendor: {expense.vendor}</span>}
+                        <span className="text-xs md:text-sm">{expense.date}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        <p className="text-2xl font-bold text-accent">${expense.amount.toFixed(2)}</p>
+                    <div className="flex items-center justify-between md:justify-end gap-4">
+                      <div className="text-left md:text-right">
+                        <p className="text-xl md:text-2xl font-bold text-accent">${expense.amount.toFixed(2)}</p>
                       </div>
                       {isAdmin && (
                         <AlertDialog>

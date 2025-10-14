@@ -199,15 +199,15 @@ export default function Maintenance() {
 
   return (
     <Layout>
-      <div className="p-8 space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-foreground">Maintenance Schedule</h1>
-            <p className="text-muted-foreground mt-1">Track and plan maintenance activities</p>
+      <div className="p-4 md:p-8 space-y-6 md:space-y-8">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex-1">
+            <h1 className="text-2xl md:text-4xl font-bold text-foreground">Maintenance Schedule</h1>
+            <p className="text-muted-foreground mt-1 text-sm md:text-base">Track and plan maintenance activities</p>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-gradient-accent shadow-md hover:shadow-lg">
+              <Button className="bg-gradient-accent shadow-md hover:shadow-lg w-full md:w-auto">
                 <Plus className="w-4 h-4 mr-2" />
                 Schedule Maintenance
               </Button>
@@ -313,7 +313,7 @@ export default function Maintenance() {
         )}
 
         <Card className="shadow-md bg-gradient-card">
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center gap-2 mb-6">
               <Calendar className="w-5 h-5 text-primary" />
               <h2 className="text-xl font-bold">Scheduled Maintenance</h2>
