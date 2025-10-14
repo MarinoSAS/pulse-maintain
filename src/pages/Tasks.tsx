@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Clock, AlertCircle, Trash2 } from "lucide-react";
 import {
   AlertDialog,
@@ -89,9 +90,9 @@ export default function Tasks() {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [selectedTaskForConfirm, setSelectedTaskForConfirm] = useState<Task | null>(null);
   const [confirmComments, setConfirmComments] = useState("");
-  const { role } = useUserRole();
+  const { role, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
-  const isRegularUser = !role || (role !== 'admin' && role !== 'manager');
+  const isRegularUser = role !== 'admin' && role !== 'manager';
 
   const form = useForm<z.infer<typeof taskSchema>>({
     resolver: zodResolver(taskSchema),
@@ -495,22 +496,33 @@ export default function Tasks() {
         )}
 
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-foreground">
-              {isRegularUser ? "Report Issue" : "Task Management"}
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              {isRegularUser 
-                ? "Report maintenance issues that require attention" 
-                : "Assign and track maintenance tasks"}
-            </p>
-          </div>
+          {roleLoading ? (
+            <div className="flex-1">
+              <Skeleton className="h-10 w-56 mb-2" />
+              <Skeleton className="h-5 w-72" />
+            </div>
+          ) : (
+            <div>
+              <h1 className="text-4xl font-bold text-foreground">
+                {isRegularUser ? "Report Issue" : "Task Management"}
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                {isRegularUser 
+                  ? "Report maintenance issues that require attention" 
+                  : "Assign and track maintenance tasks"}
+              </p>
+            </div>
+          )}
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-gradient-accent shadow-md hover:shadow-lg">
-                <Plus className="w-4 h-4 mr-2" />
-                {isRegularUser ? "Report Issue" : "New Task"}
-              </Button>
+              {roleLoading ? (
+                <Skeleton className="h-10 w-36" />
+              ) : (
+                <Button className="bg-gradient-accent shadow-md hover:shadow-lg">
+                  <Plus className="w-4 h-4 mr-2" />
+                  {isRegularUser ? "Report Issue" : "New Task"}
+                </Button>
+              )}
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
