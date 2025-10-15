@@ -6,6 +6,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+async function getPdfAsBase64(pdfUrl: string): Promise<string> {
+  console.log('Downloading PDF file...');
+  const response = await fetch(pdfUrl);
+  if (!response.ok) {
+    throw new Error('Failed to download PDF file');
+  }
+  
+  const arrayBuffer = await response.arrayBuffer();
+  const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+  console.log('PDF converted to base64 for AI processing');
+  return `data:application/pdf;base64,${base64}`;
+}
+
+function isPdfFile(filePath: string): boolean {
+  return filePath.toLowerCase().endsWith('.pdf');
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -43,6 +60,15 @@ serve(async (req) => {
 
     console.log('Generated signed URL for invoice');
 
+    let imageUrl: string;
+
+    if (isPdfFile(filePath)) {
+      console.log('PDF file detected, processing...');
+      imageUrl = await getPdfAsBase64(urlData.signedUrl);
+    } else {
+      imageUrl = urlData.signedUrl;
+    }
+
     // Call Lovable AI with the invoice image
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -77,7 +103,7 @@ Prioritize extracting the net/subtotal amount. Return null for fields that are u
               {
                 type: 'image_url',
                 image_url: {
-                  url: urlData.signedUrl
+                  url: imageUrl
                 }
               }
             ]
@@ -159,7 +185,7 @@ Prioritize extracting the net/subtotal amount. Return null for fields that are u
         try {
           const errorBody = JSON.parse(errorText);
           if (errorBody.error?.message?.includes('Failed to extract')) {
-            throw new Error('Unable to process this file type. Please use JPG, PNG, or WEBP images only.');
+            throw new Error('Unable to analyze the invoice. The image may be too blurry or corrupted.');
           }
         } catch (e) {
           // If parsing fails, continue with generic error

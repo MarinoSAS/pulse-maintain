@@ -35,16 +35,10 @@ export function InvoiceUpload({ onDataExtracted, onCancel }: InvoiceUploadProps)
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Block PDF files with helpful message
-    if (file.type === 'application/pdf') {
-      toast.error('PDF files are not supported. Please convert to JPG/PNG first or take a screenshot.');
-      return;
-    }
-
     // Validate file type
-    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
     if (!validTypes.includes(file.type)) {
-      toast.error('Invalid file type. Please upload JPG, PNG, or WEBP images.');
+      toast.error('Invalid file type. Please upload JPG, PNG, WEBP, or PDF files.');
       return;
     }
 
@@ -178,13 +172,13 @@ export function InvoiceUpload({ onDataExtracted, onCancel }: InvoiceUploadProps)
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
               className="hidden"
               onChange={handleFileSelect}
             />
 
             <p className="text-xs text-muted-foreground text-center">
-              Supported: JPG, PNG, WEBP (max 10MB). Convert PDFs to images first.
+              Supported: JPG, PNG, WEBP, PDF (max 10MB). PDFs will be automatically processed.
             </p>
           </div>
         ) : (
@@ -237,10 +231,14 @@ export function InvoiceUpload({ onDataExtracted, onCancel }: InvoiceUploadProps)
             {isProcessing && (
               <div className="text-center space-y-2">
                 <Badge variant="secondary" className="animate-pulse">
-                  AI is analyzing your invoice...
+                  {selectedFile?.type === 'application/pdf' 
+                    ? 'Processing PDF and analyzing...' 
+                    : 'AI is analyzing your invoice...'}
                 </Badge>
                 <p className="text-xs text-muted-foreground">
-                  This may take a few seconds
+                  {selectedFile?.type === 'application/pdf'
+                    ? 'PDF files may take a bit longer'
+                    : 'This may take a few seconds'}
                 </p>
               </div>
             )}
