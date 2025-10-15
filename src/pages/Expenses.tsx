@@ -46,6 +46,7 @@ export default function Expenses() {
   const { isAdmin } = useUserRole();
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
   const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
 
   useEffect(() => {
     loadExpenses();
@@ -188,10 +189,11 @@ export default function Expenses() {
               </div>
             ) : (
               <div className="space-y-3">
-                 {expenses.map((expense) => (
+                {expenses.map((expense) => (
                   <div
                     key={expense.id}
-                    className="flex flex-col md:flex-row md:items-center md:justify-between p-4 rounded-lg border border-border bg-background/50 hover:bg-background transition-colors group gap-4"
+                    className="flex flex-col md:flex-row md:items-center md:justify-between p-4 rounded-lg border border-border bg-background/50 hover:bg-background transition-colors group gap-4 cursor-pointer"
+                    onClick={() => setSelectedExpense(expense)}
                   >
                     <div className="flex-1">
                   <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -217,7 +219,10 @@ export default function Expenses() {
                             variant="link"
                             size="sm"
                             className="h-auto p-0 text-xs md:text-sm"
-                            onClick={() => viewInvoice(expense.invoice_file_path!)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              viewInvoice(expense.invoice_file_path!);
+                            }}
                           >
                             <FileText className="w-3 h-3 mr-1" />
                             View Invoice
@@ -232,7 +237,12 @@ export default function Expenses() {
                       {isAdmin && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </AlertDialogTrigger>
@@ -262,6 +272,76 @@ export default function Expenses() {
             )}
           </CardContent>
         </Card>
+
+        {/* Expense Details Dialog */}
+        <Dialog open={selectedExpense !== null} onOpenChange={() => setSelectedExpense(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Expense Details</DialogTitle>
+            </DialogHeader>
+            {selectedExpense && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Description</p>
+                    <p className="font-semibold">{selectedExpense.description}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Amount</p>
+                    <p className="font-semibold text-xl text-accent">€{selectedExpense.amount.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Category</p>
+                    <Badge variant="outline">{selectedExpense.category}</Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Date</p>
+                    <p className="font-semibold">{selectedExpense.date}</p>
+                  </div>
+                  {selectedExpense.company && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Company</p>
+                      <Badge variant="secondary">{selectedExpense.company}</Badge>
+                    </div>
+                  )}
+                  {selectedExpense.invoice_number && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Invoice Number</p>
+                      <p className="font-semibold">{selectedExpense.invoice_number}</p>
+                    </div>
+                  )}
+                  {selectedExpense.vendor && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Vendor</p>
+                      <p className="font-semibold">{selectedExpense.vendor}</p>
+                    </div>
+                  )}
+                  {selectedExpense.asset && (
+                    <div className="col-span-2">
+                      <p className="text-sm text-muted-foreground">Asset</p>
+                      <p className="font-semibold">
+                        {selectedExpense.asset.name} ({selectedExpense.asset.asset_id})
+                      </p>
+                    </div>
+                  )}
+                </div>
+                {selectedExpense.invoice_file_path && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      viewInvoice(selectedExpense.invoice_file_path!);
+                      setSelectedExpense(null);
+                    }}
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    View Invoice Document
+                  </Button>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Invoice Viewer Dialog */}
         <Dialog open={selectedInvoice !== null} onOpenChange={() => {
