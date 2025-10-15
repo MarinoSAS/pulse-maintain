@@ -48,7 +48,7 @@ export type Database = {
           approved_by: string | null
           asset_id: string
           assigned_to: string | null
-          category: Database["public"]["Enums"]["asset_category"]
+          category: string
           company: Database["public"]["Enums"]["company_name"]
           created_at: string
           created_by: string | null
@@ -71,7 +71,7 @@ export type Database = {
           approved_by?: string | null
           asset_id: string
           assigned_to?: string | null
-          category: Database["public"]["Enums"]["asset_category"]
+          category: string
           company?: Database["public"]["Enums"]["company_name"]
           created_at?: string
           created_by?: string | null
@@ -94,7 +94,7 @@ export type Database = {
           approved_by?: string | null
           asset_id?: string
           assigned_to?: string | null
-          category?: Database["public"]["Enums"]["asset_category"]
+          category?: string
           company?: Database["public"]["Enums"]["company_name"]
           created_at?: string
           created_by?: string | null
@@ -125,6 +125,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_assets_category"
+            columns: ["category"]
+            isOneToOne: false
+            referencedRelation: "asset_categories"
+            referencedColumns: ["name"]
           },
         ]
       }
@@ -784,7 +791,6 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "supervisor" | "technician" | "manager"
-      asset_category: "Vehicles" | "Equipment" | "Tools" | "Facilities"
       asset_status: "Active" | "Maintenance" | "Inactive"
       company_name: "Unifruit" | "Limnia" | "HRC" | "Other"
       completion_status: "pending_confirmation" | "confirmed"
@@ -925,7 +931,6 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "supervisor", "technician", "manager"],
-      asset_category: ["Vehicles", "Equipment", "Tools", "Facilities"],
       asset_status: ["Active", "Maintenance", "Inactive"],
       company_name: ["Unifruit", "Limnia", "HRC", "Other"],
       completion_status: ["pending_confirmation", "confirmed"],

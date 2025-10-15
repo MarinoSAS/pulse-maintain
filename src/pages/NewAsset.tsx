@@ -115,7 +115,7 @@ export default function NewAsset() {
         asset_id: values.assetId,
         name: values.name,
         description: values.description || null,
-        category: values.category as any,
+        category: values.category,
         company: values.company,
         status: values.status,
         assigned_to: values.assignedTo || null,
