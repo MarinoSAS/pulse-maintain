@@ -63,6 +63,7 @@ export default function NewExpense() {
   const [showInvoiceUpload, setShowInvoiceUpload] = useState(false);
   const [invoiceFilePath, setInvoiceFilePath] = useState<string | null>(null);
   const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
+  const [assetsLoaded, setAssetsLoaded] = useState(false);
   
   const form = useForm<z.infer<typeof expenseSchema>>({
     resolver: zodResolver(expenseSchema),
@@ -108,8 +109,10 @@ export default function NewExpense() {
 
       if (error) throw error;
       setAssets(data || []);
+      setAssetsLoaded(true);
     } catch (error: any) {
       console.error("Failed to load assets:", error);
+      setAssetsLoaded(true);
     }
   };
 
@@ -322,9 +325,10 @@ export default function NewExpense() {
                 onClick={() => setShowInvoiceUpload(true)}
                 variant="outline"
                 className="w-full md:w-auto"
+                disabled={!assetsLoaded}
               >
                 <ScanLine className="w-4 h-4 mr-2" />
-                Scan Invoice
+                {assetsLoaded ? "Scan Invoice" : "Loading assets..."}
               </Button>
             </div>
           </div>
@@ -342,7 +346,7 @@ export default function NewExpense() {
                         <Badge variant="secondary" className="text-xs">✓ Auto-filled</Badge>
                       )}
                     </FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger className={autoFilledFields.has("assetId") ? "border-green-500" : ""}>
                           <SelectValue placeholder="Select an asset" />
