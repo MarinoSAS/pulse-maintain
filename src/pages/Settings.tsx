@@ -112,12 +112,12 @@ export default function Settings() {
     try {
       const { data, error } = await supabase
         .from("asset_categories")
-        .select("*, assets(count)");
+        .select("*");
 
       if (error) throw error;
       setAssetCategories(data || []);
     } catch (error: any) {
-      toast.error("Failed to load asset categories");
+      toast.error(`Failed to load asset categories: ${error.message}`);
     }
   };
 
@@ -153,7 +153,8 @@ export default function Settings() {
         toast.success("Category created successfully");
       }
 
-      resetCategoryForm();
+      clearCategoryFields();
+      setCategoryDialogOpen(false);
       loadAssetCategories();
     } catch (error: any) {
       toast.error(error.message || "Failed to save category");
@@ -178,12 +179,11 @@ export default function Settings() {
     }
   };
 
-  const resetCategoryForm = () => {
+  const clearCategoryFields = () => {
     setCategoryName("");
     setCategoryIcon("");
     setCategoryColor("");
     setEditingCategory(null);
-    setCategoryDialogOpen(false);
   };
 
   // Maintenance Types Functions
@@ -271,7 +271,8 @@ export default function Settings() {
       }
 
       toast.success(editingType ? "Type updated successfully" : "Type created successfully");
-      resetTypeForm();
+      clearTypeFields();
+      setTypeDialogOpen(false);
       loadMaintenanceTypes();
     } catch (error: any) {
       toast.error(error.message || "Failed to save maintenance type");
@@ -296,12 +297,11 @@ export default function Settings() {
     }
   };
 
-  const resetTypeForm = () => {
+  const clearTypeFields = () => {
     setTypeName("");
     setTypeDescription("");
     setSelectedCategories([]);
     setEditingType(null);
-    setTypeDialogOpen(false);
   };
 
   const openEditType = (type: MaintenanceType) => {
@@ -317,12 +317,12 @@ export default function Settings() {
     try {
       const { data, error } = await supabase
         .from("vendor_types")
-        .select("*, vendors(count)");
+        .select("*");
 
       if (error) throw error;
       setVendorTypes(data || []);
     } catch (error: any) {
-      toast.error("Failed to load vendor types");
+      toast.error(`Failed to load vendor types: ${error.message}`);
     }
   };
 
@@ -356,7 +356,8 @@ export default function Settings() {
         toast.success("Vendor type created successfully");
       }
 
-      resetVendorTypeForm();
+      clearVendorTypeFields();
+      setVendorTypeDialogOpen(false);
       loadVendorTypes();
     } catch (error: any) {
       toast.error(error.message || "Failed to save vendor type");
@@ -381,11 +382,10 @@ export default function Settings() {
     }
   };
 
-  const resetVendorTypeForm = () => {
+  const clearVendorTypeFields = () => {
     setVendorTypeName("");
     setVendorTypeDescription("");
     setEditingVendorType(null);
-    setVendorTypeDialogOpen(false);
   };
 
   if (!isAdmin) {
@@ -418,8 +418,7 @@ export default function Settings() {
               <Dialog open={categoryDialogOpen} onOpenChange={(open) => {
                 setCategoryDialogOpen(open);
                 if (open) {
-                  setEditingCategory(null);
-                  resetCategoryForm();
+                  clearCategoryFields();
                 }
               }}>
                 <DialogTrigger asChild>
@@ -466,7 +465,10 @@ export default function Settings() {
                       />
                     </div>
                     <div className="flex justify-end gap-3">
-                      <Button variant="outline" onClick={resetCategoryForm}>
+                      <Button variant="outline" onClick={() => {
+                        clearCategoryFields();
+                        setCategoryDialogOpen(false);
+                      }}>
                         Cancel
                       </Button>
                       <Button onClick={handleSaveCategory}>
@@ -590,8 +592,7 @@ export default function Settings() {
               <Dialog open={typeDialogOpen} onOpenChange={(open) => {
                 setTypeDialogOpen(open);
                 if (open) {
-                  setEditingType(null);
-                  resetTypeForm();
+                  clearTypeFields();
                 }
               }}>
                 <DialogTrigger asChild>
@@ -657,7 +658,10 @@ export default function Settings() {
                       </div>
                     </div>
                     <div className="flex justify-end gap-3">
-                      <Button variant="outline" onClick={resetTypeForm}>
+                      <Button variant="outline" onClick={() => {
+                        clearTypeFields();
+                        setTypeDialogOpen(false);
+                      }}>
                         Cancel
                       </Button>
                       <Button onClick={handleSaveMaintenanceType}>
@@ -774,8 +778,7 @@ export default function Settings() {
               <Dialog open={vendorTypeDialogOpen} onOpenChange={(open) => {
                 setVendorTypeDialogOpen(open);
                 if (open) {
-                  setEditingVendorType(null);
-                  resetVendorTypeForm();
+                  clearVendorTypeFields();
                 }
               }}>
                 <DialogTrigger asChild>
@@ -813,7 +816,10 @@ export default function Settings() {
                       />
                     </div>
                     <div className="flex justify-end gap-3">
-                      <Button variant="outline" onClick={resetVendorTypeForm}>
+                      <Button variant="outline" onClick={() => {
+                        clearVendorTypeFields();
+                        setVendorTypeDialogOpen(false);
+                      }}>
                         Cancel
                       </Button>
                       <Button onClick={handleSaveVendorType}>
