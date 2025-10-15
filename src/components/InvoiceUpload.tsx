@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 
 export interface ExtractedInvoiceData {
   amount: number;
+  vat_amount?: number;
+  total_amount?: number;
   date: string;
   vendor_name?: string;
   invoice_number?: string;

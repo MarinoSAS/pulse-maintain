@@ -143,7 +143,7 @@ export default function NewExpense() {
   const handleInvoiceDataExtracted = (data: ExtractedInvoiceData, filePath: string) => {
     const fieldsSet = new Set<string>();
     
-    // Set the cost
+    // Set the cost (net amount before VAT)
     if (data.amount) {
       form.setValue("cost", data.amount.toString());
       fieldsSet.add("cost");
@@ -190,7 +190,14 @@ export default function NewExpense() {
     setInvoiceFilePath(filePath);
     setShowInvoiceUpload(false);
     
-    toast.success("Invoice data extracted! Please review and select an asset.");
+    // Enhanced success message with VAT info
+    if (data.vat_amount && data.total_amount) {
+      toast.success(
+        `Invoice scanned! Net: $${data.amount.toFixed(2)} + VAT: $${data.vat_amount.toFixed(2)} = Total: $${data.total_amount.toFixed(2)}`
+      );
+    } else {
+      toast.success("Invoice data extracted! Please review and select an asset.");
+    }
   };
 
   const onSubmit = async (values: z.infer<typeof expenseSchema>) => {

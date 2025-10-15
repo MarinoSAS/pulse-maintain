@@ -13,15 +13,17 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 
 const vendorSchema = z.object({
   name: z.string().min(1, "Vendor name is required").max(100, "Name too long"),
+  vendorTypeId: z.string().uuid().optional(),
   contactPerson: z.string().max(100, "Contact person name too long").optional(),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   phone: z.string().max(20, "Phone number too long").optional(),
@@ -32,12 +34,14 @@ const vendorSchema = z.object({
 export default function NewVendor() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [vendorTypes, setVendorTypes] = useState<Array<{id: string, name: string}>>([]);
   const { isAdmin } = useUserRole();
   
   const form = useForm<z.infer<typeof vendorSchema>>({
     resolver: zodResolver(vendorSchema),
     defaultValues: {
       name: "",
+      vendorTypeId: "",
       contactPerson: "",
       email: "",
       phone: "",
@@ -45,6 +49,23 @@ export default function NewVendor() {
       notes: "",
     },
   });
+
+  useEffect(() => {
+    loadVendorTypes();
+  }, []);
+
+  const loadVendorTypes = async () => {
+    const { data, error } = await supabase
+      .from("vendor_types")
+      .select("id, name")
+      .order("name");
+    
+    if (error) {
+      toast.error("Failed to load vendor types");
+    } else {
+      setVendorTypes(data || []);
+    }
+  };
 
   const onSubmit = async (values: z.infer<typeof vendorSchema>) => {
     setIsSubmitting(true);
@@ -56,6 +77,7 @@ export default function NewVendor() {
       
       const { error } = await supabase.from("vendors").insert({
         name: values.name,
+        vendor_type_id: values.vendorTypeId || null,
         contact_person: values.contactPerson || null,
         email: values.email || null,
         phone: values.phone || null,
@@ -110,6 +132,31 @@ export default function NewVendor() {
                     <FormControl>
                       <Input placeholder="Auto Parts Co." {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="vendorTypeId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Vendor Type (Optional)</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a vendor type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {vendorTypes.map((type) => (
+                          <SelectItem key={type.id} value={type.id}>
+                            {type.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

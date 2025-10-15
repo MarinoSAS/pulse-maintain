@@ -59,14 +59,18 @@ serve(async (req) => {
               {
                 type: 'text',
                 text: `Analyze this invoice image and extract the following information:
-- Total amount (numeric value only, no currency symbols)
+- Net amount / Subtotal BEFORE VAT/tax (numeric value only, no currency symbols)
+  - Look for labels like: "Subtotal", "Net Amount", "Amount before VAT", "Netto", "Sub Total"
+  - If only the total with VAT is visible, extract that but note it in the description
+- VAT/Tax amount (if shown separately)
+- Total amount including VAT (if different from subtotal)
 - Invoice date (in YYYY-MM-DD format)
 - Vendor/supplier name
 - Invoice number
 - Service description (brief, 1-2 sentences)
 - Service type (must be one of: Service, Oil Change, MOT, Tachograph, Speed Limiter, Repair, Brake Service, Tire Replacement, Parts Replacement, Inspection, Other)
 
-Return the extracted data. If any field is unclear or missing, use null for that field.`
+Prioritize extracting the net/subtotal amount. Return null for fields that are unclear or missing.`
               },
               {
                 type: 'image_url',
@@ -87,7 +91,15 @@ Return the extracted data. If any field is unclear or missing, use null for that
               properties: {
                 amount: { 
                   type: 'number',
-                  description: 'The total amount on the invoice'
+                  description: 'The net amount BEFORE VAT/tax (subtotal). If only total is visible, extract the total.'
+                },
+                vat_amount: { 
+                  type: 'number',
+                  description: 'VAT/tax amount if visible on invoice'
+                },
+                total_amount: { 
+                  type: 'number',
+                  description: 'Total amount including VAT if different from net amount'
                 },
                 date: { 
                   type: 'string',
