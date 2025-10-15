@@ -34,6 +34,37 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
+// Helper function to normalize vendor names for matching
+const normalizeVendorName = (name: string): string => {
+  return name
+    .toLowerCase()
+    .replace(/[.,]/g, '') // Remove periods and commas
+    .replace(/\s+/g, ' ') // Normalize multiple spaces to single space
+    .replace(/\b(ltd|limited|enterprises|inc|incorporated|llc|plc|corp|corporation)\b/gi, '') // Remove common suffixes
+    .trim();
+};
+
+// Helper function for fuzzy vendor name matching
+const matchVendorByWords = (extractedName: string, dbName: string): boolean => {
+  const normalizedExtracted = normalizeVendorName(extractedName);
+  const normalizedDb = normalizeVendorName(dbName);
+  
+  // Exact match after normalization
+  if (normalizedExtracted === normalizedDb) return true;
+  
+  // Word-based matching
+  const dbWords = normalizedDb.split(' ').filter(w => w.length > 2 && w !== 'and');
+  const extractedWords = normalizedExtracted.split(' ').filter(w => w.length > 2 && w !== 'and');
+  
+  // Check if all significant DB words appear in extracted name
+  const matchedWords = dbWords.filter(dbWord => 
+    extractedWords.some(extWord => extWord.includes(dbWord) || dbWord.includes(extWord))
+  );
+  
+  // Match if at least 70% of DB words are found
+  return matchedWords.length / dbWords.length >= 0.7;
+};
+
 const expenseSchema = z.object({
   assetId: z.string().min(1, "Please select an asset"),
   serviceType: z.string().min(1, "Please select a service type"),
@@ -192,16 +223,19 @@ export default function NewExpense() {
       }
     }
     
-    // Try to match vendor by name
+    // Try to match vendor by name using fuzzy matching
     if (data.vendor_name && vendors.length > 0) {
       const matchedVendor = vendors.find(v => 
-        v.name.toLowerCase().includes(data.vendor_name!.toLowerCase()) ||
-        data.vendor_name!.toLowerCase().includes(v.name.toLowerCase())
+        matchVendorByWords(data.vendor_name!, v.name)
       );
       
       if (matchedVendor) {
+        console.log(`✅ Matched vendor: "${data.vendor_name}" → "${matchedVendor.name}"`);
         form.setValue("vendorId", matchedVendor.id);
         fieldsSet.add("vendorId");
+      } else {
+        console.log(`⚠️ No vendor match found for: "${data.vendor_name}"`);
+        console.log('Available vendors:', vendors.map(v => v.name));
       }
     }
     
