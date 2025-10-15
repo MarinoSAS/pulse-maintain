@@ -69,6 +69,8 @@ serve(async (req) => {
 - Invoice number
 - Service description (brief, 1-2 sentences)
 - Service type (must be one of: Service, Oil Change, MOT, Tachograph, Speed Limiter, Repair, Brake Service, Tire Replacement, Parts Replacement, Inspection, Other)
+- Asset identifier (vehicle registration/license plate, asset ID, or reference number if visible)
+- Asset description (vehicle make/model or asset description if visible)
 
 Prioritize extracting the net/subtotal amount. Return null for fields that are unclear or missing.`
               },
@@ -121,6 +123,14 @@ Prioritize extracting the net/subtotal amount. Return null for fields that are u
                   type: 'string',
                   enum: ['Service', 'Oil Change', 'MOT', 'Tachograph', 'Speed Limiter', 'Repair', 'Brake Service', 'Tire Replacement', 'Parts Replacement', 'Inspection', 'Other'],
                   description: 'Type of service performed'
+                },
+                asset_identifier: { 
+                  type: 'string',
+                  description: 'Vehicle registration, license plate, or asset ID if visible on invoice'
+                },
+                asset_description: { 
+                  type: 'string',
+                  description: 'Vehicle make/model or asset description if visible'
                 }
               },
               required: ['amount', 'date', 'service_type'],
@@ -144,6 +154,16 @@ Prioritize extracting the net/subtotal amount. Return null for fields that are u
       }
       if (aiResponse.status === 402) {
         throw new Error('AI service requires payment. Please add credits to your workspace.');
+      }
+      if (aiResponse.status === 400) {
+        try {
+          const errorBody = JSON.parse(errorText);
+          if (errorBody.error?.message?.includes('Failed to extract')) {
+            throw new Error('Unable to process this file type. Please use JPG, PNG, or WEBP images only.');
+          }
+        } catch (e) {
+          // If parsing fails, continue with generic error
+        }
       }
       throw new Error('Failed to analyze invoice with AI');
     }

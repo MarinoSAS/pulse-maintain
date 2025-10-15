@@ -173,6 +173,20 @@ export default function NewExpense() {
       fieldsSet.add("description");
     }
     
+    // Try to match asset by identifier
+    if (data.asset_identifier && assets.length > 0) {
+      const matchedAsset = assets.find(a => 
+        a.asset_id?.toLowerCase() === data.asset_identifier!.toLowerCase() ||
+        a.name?.toLowerCase().includes(data.asset_identifier!.toLowerCase()) ||
+        data.asset_identifier!.toLowerCase().includes(a.name?.toLowerCase())
+      );
+      
+      if (matchedAsset) {
+        form.setValue("assetId", matchedAsset.id);
+        fieldsSet.add("assetId");
+      }
+    }
+    
     // Try to match vendor by name
     if (data.vendor_name && vendors.length > 0) {
       const matchedVendor = vendors.find(v => 
@@ -190,17 +204,53 @@ export default function NewExpense() {
     setInvoiceFilePath(filePath);
     setShowInvoiceUpload(false);
     
+    // Track missing required fields
+    const missingFields: string[] = [];
+    if (!fieldsSet.has("assetId")) missingFields.push("Asset");
+    if (!data.amount) missingFields.push("Cost");
+    if (!data.date) missingFields.push("Date");
+    if (!data.service_type) missingFields.push("Service Type");
+    
     // Enhanced success message with VAT info
     if (data.vat_amount && data.total_amount) {
       toast.success(
         `Invoice scanned! Net: $${data.amount.toFixed(2)} + VAT: $${data.vat_amount.toFixed(2)} = Total: $${data.total_amount.toFixed(2)}`
       );
     } else {
-      toast.success("Invoice data extracted! Please review and select an asset.");
+      toast.success("Invoice scanned successfully!");
+    }
+    
+    // Warning for missing fields
+    if (missingFields.length > 0) {
+      toast.warning(
+        `⚠️ Please fill in manually: ${missingFields.join(", ")}`,
+        { duration: 5000 }
+      );
     }
   };
 
   const onSubmit = async (values: z.infer<typeof expenseSchema>) => {
+    // Validate critical fields
+    if (!values.assetId) {
+      toast.error("Please select an asset before saving");
+      return;
+    }
+    
+    if (!values.cost || parseFloat(values.cost) <= 0) {
+      toast.error("Please enter a valid cost amount");
+      return;
+    }
+    
+    if (!values.serviceType) {
+      toast.error("Please select a service type");
+      return;
+    }
+    
+    // Warning if invoice was scanned but asset not matched
+    if (invoiceFilePath && !autoFilledFields.has("assetId")) {
+      toast.warning("Note: Asset could not be detected from invoice. Please verify selection.");
+    }
+    
     setIsSubmitting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -284,10 +334,15 @@ export default function NewExpense() {
                 name="assetId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Asset</FormLabel>
+                    <FormLabel className="flex items-center gap-2">
+                      Asset *
+                      {autoFilledFields.has("assetId") && (
+                        <Badge variant="secondary" className="text-xs">✓ Auto-filled</Badge>
+                      )}
+                    </FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className={autoFilledFields.has("assetId") ? "border-green-500" : ""}>
                           <SelectValue placeholder="Select an asset" />
                         </SelectTrigger>
                       </FormControl>
@@ -310,14 +365,14 @@ export default function NewExpense() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="flex items-center gap-2">
-                      Service Type
+                      Service Type *
                       {autoFilledFields.has("serviceType") && (
-                        <Badge variant="secondary" className="text-xs">Auto-filled</Badge>
+                        <Badge variant="secondary" className="text-xs">✓ Auto-filled</Badge>
                       )}
                     </FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className={autoFilledFields.has("serviceType") ? "border-green-500" : ""}>
                           <SelectValue placeholder="Select service type" />
                         </SelectTrigger>
                       </FormControl>
@@ -346,13 +401,19 @@ export default function NewExpense() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="flex items-center gap-2">
-                      Cost
+                      Cost *
                       {autoFilledFields.has("cost") && (
-                        <Badge variant="secondary" className="text-xs">Auto-filled</Badge>
+                        <Badge variant="secondary" className="text-xs">✓ Auto-filled</Badge>
                       )}
                     </FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="450.00" {...field} />
+                      <Input 
+                        type="number" 
+                        step="0.01" 
+                        placeholder="450.00" 
+                        className={autoFilledFields.has("cost") ? "border-green-500" : ""}
+                        {...field} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -367,11 +428,15 @@ export default function NewExpense() {
                     <FormLabel className="flex items-center gap-2">
                       Invoice Number (Optional)
                       {autoFilledFields.has("invoiceNumber") && (
-                        <Badge variant="secondary" className="text-xs">Auto-filled</Badge>
+                        <Badge variant="secondary" className="text-xs">✓ Auto-filled</Badge>
                       )}
                     </FormLabel>
                     <FormControl>
-                      <Input placeholder="12345" {...field} />
+                      <Input 
+                        placeholder="12345" 
+                        className={autoFilledFields.has("invoiceNumber") ? "border-green-500" : ""}
+                        {...field} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -384,13 +449,17 @@ export default function NewExpense() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="flex items-center gap-2">
-                      Service Date
+                      Service Date *
                       {autoFilledFields.has("date") && (
-                        <Badge variant="secondary" className="text-xs">Auto-filled</Badge>
+                        <Badge variant="secondary" className="text-xs">✓ Auto-filled</Badge>
                       )}
                     </FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input 
+                        type="date" 
+                        className={autoFilledFields.has("date") ? "border-green-500" : ""}
+                        {...field} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -405,12 +474,12 @@ export default function NewExpense() {
                     <FormLabel className="flex items-center gap-2">
                       Vendor (Optional)
                       {autoFilledFields.has("vendorId") && (
-                        <Badge variant="secondary" className="text-xs">Auto-filled</Badge>
+                        <Badge variant="secondary" className="text-xs">✓ Auto-filled</Badge>
                       )}
                     </FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className={autoFilledFields.has("vendorId") ? "border-green-500" : ""}>
                           <SelectValue placeholder="Select a vendor" />
                         </SelectTrigger>
                       </FormControl>
@@ -435,13 +504,13 @@ export default function NewExpense() {
                     <FormLabel className="flex items-center gap-2">
                       Description (Optional)
                       {autoFilledFields.has("description") && (
-                        <Badge variant="secondary" className="text-xs">Auto-filled</Badge>
+                        <Badge variant="secondary" className="text-xs">✓ Auto-filled</Badge>
                       )}
                     </FormLabel>
                     <FormControl>
                       <Textarea 
                         placeholder="Additional notes about this service..." 
-                        className="min-h-[100px]"
+                        className={`min-h-[100px] ${autoFilledFields.has("description") ? "border-green-500" : ""}`}
                         {...field} 
                       />
                     </FormControl>
