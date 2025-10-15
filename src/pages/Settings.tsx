@@ -415,9 +415,15 @@ export default function Settings() {
               <p className="text-xs md:text-sm text-muted-foreground">
                 Manage asset categories and their visual properties
               </p>
-              <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+              <Dialog open={categoryDialogOpen} onOpenChange={(open) => {
+                setCategoryDialogOpen(open);
+                if (open) {
+                  setEditingCategory(null);
+                  resetCategoryForm();
+                }
+              }}>
                 <DialogTrigger asChild>
-                  <Button onClick={() => setEditingCategory(null)} className="w-full md:w-auto">
+                  <Button className="w-full md:w-auto">
                     <Plus className="w-4 h-4 mr-2" />
                     Add Category
                   </Button>
@@ -581,9 +587,15 @@ export default function Settings() {
               <p className="text-xs md:text-sm text-muted-foreground">
                 Define maintenance types and link them to asset categories
               </p>
-              <Dialog open={typeDialogOpen} onOpenChange={setTypeDialogOpen}>
+              <Dialog open={typeDialogOpen} onOpenChange={(open) => {
+                setTypeDialogOpen(open);
+                if (open) {
+                  setEditingType(null);
+                  resetTypeForm();
+                }
+              }}>
                 <DialogTrigger asChild>
-                  <Button onClick={() => setEditingType(null)} className="w-full md:w-auto">
+                  <Button className="w-full md:w-auto">
                     <Plus className="w-4 h-4 mr-2" />
                     Add Type
                   </Button>
@@ -759,9 +771,15 @@ export default function Settings() {
               <p className="text-xs md:text-sm text-muted-foreground">
                 Manage vendor types and categorizations
               </p>
-              <Dialog open={vendorTypeDialogOpen} onOpenChange={setVendorTypeDialogOpen}>
+              <Dialog open={vendorTypeDialogOpen} onOpenChange={(open) => {
+                setVendorTypeDialogOpen(open);
+                if (open) {
+                  setEditingVendorType(null);
+                  resetVendorTypeForm();
+                }
+              }}>
                 <DialogTrigger asChild>
-                  <Button onClick={() => setEditingVendorType(null)} className="w-full md:w-auto">
+                  <Button className="w-full md:w-auto">
                     <Plus className="w-4 h-4 mr-2" />
                     Add Vendor Type
                   </Button>
