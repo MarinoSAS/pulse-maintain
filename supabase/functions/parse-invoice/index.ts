@@ -6,32 +6,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function getPdfAsBase64(pdfUrl: string): Promise<string> {
-  console.log('Downloading PDF file...');
-  const response = await fetch(pdfUrl);
-  if (!response.ok) {
-    throw new Error('Failed to download PDF file');
-  }
-  
-  const arrayBuffer = await response.arrayBuffer();
-  const bytes = new Uint8Array(arrayBuffer);
-  
-  // Convert to base64 in chunks to avoid stack overflow
-  let binary = '';
-  const chunkSize = 8192;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.slice(i, i + chunkSize);
-    binary += String.fromCharCode(...chunk);
-  }
-  
-  const base64 = btoa(binary);
-  console.log('PDF converted to base64 for AI processing');
-  return `data:application/pdf;base64,${base64}`;
-}
-
-function isPdfFile(filePath: string): boolean {
-  return filePath.toLowerCase().endsWith('.pdf');
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -70,13 +44,8 @@ serve(async (req) => {
 
     console.log('Generated signed URL for invoice');
 
-    let imageUrl: string;
-    if (isPdfFile(filePath)) {
-      console.log('PDF file detected, converting to base64 for AI...');
-      imageUrl = await getPdfAsBase64(urlData.signedUrl);
-    } else {
-      imageUrl = urlData.signedUrl;
-    }
+    // Client always sends images (PNG/JPEG), so use the signed URL directly
+    const imageUrl = urlData.signedUrl;
 
     // Call Lovable AI with the invoice image
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -184,23 +153,32 @@ Prioritize extracting the net/subtotal amount. Return null for fields that are u
       const errorText = await aiResponse.text();
       console.error('AI API error:', aiResponse.status, errorText);
       
+      // Return friendly errors with 200 status so client can handle them
       if (aiResponse.status === 429) {
-        throw new Error('Rate limit exceeded. Please try again later.');
+        return new Response(
+          JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
+      
       if (aiResponse.status === 402) {
-        throw new Error('AI service requires payment. Please add credits to your workspace.');
+        return new Response(
+          JSON.stringify({ error: 'AI service requires payment. Please add credits to your workspace.' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
-      if (aiResponse.status === 400) {
-        try {
-          const errorBody = JSON.parse(errorText);
-          if (errorBody.error?.message?.includes('Failed to extract')) {
-            throw new Error('Unable to analyze the invoice. The image may be too blurry or corrupted.');
-          }
-        } catch (e) {
-          // If parsing fails, continue with generic error
-        }
+      
+      if (aiResponse.status === 400 && errorText.includes('Failed to extract')) {
+        return new Response(
+          JSON.stringify({ error: 'Unable to analyze the invoice image. Please upload a clear photo or higher-resolution image.' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
-      throw new Error('Failed to analyze invoice with AI');
+      
+      return new Response(
+        JSON.stringify({ error: 'Failed to analyze invoice with AI' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const aiData = await aiResponse.json();

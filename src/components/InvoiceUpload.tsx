@@ -5,6 +5,10 @@ import { Camera, Upload, X, FileText, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+
+GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 export interface ExtractedInvoiceData {
   amount: number;
@@ -63,51 +67,124 @@ export function InvoiceUpload({ onDataExtracted, onCancel }: InvoiceUploadProps)
     }
   };
 
+  const renderPdfFirstPageToBlob = async (file: File): Promise<Blob> => {
+    const data = new Uint8Array(await file.arrayBuffer());
+    const pdf = await getDocument({ data }).promise;
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: 2 }); // 2x scale for better OCR quality
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Could not get canvas context');
+    
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    
+    await page.render({ canvasContext: ctx, viewport, background: 'white' } as any).promise;
+    
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => blob ? resolve(blob) : reject(new Error('Failed to convert canvas to blob')),
+        'image/png',
+        0.92
+      );
+    });
+  };
+
   const uploadAndProcess = async () => {
     if (!selectedFile) return;
 
     setIsProcessing(true);
+    let tempPngPath: string | null = null;
 
     try {
-      // Upload to storage
-      const fileExt = selectedFile.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = fileName;
+      const timestamp = Date.now();
+      let filePathToProcess: string;
+      let invoiceFilePath: string;
 
-      console.log('Uploading file to storage...');
-      const { error: uploadError } = await supabase.storage
-        .from('invoices')
-        .upload(filePath, selectedFile);
+      if (selectedFile.type === 'application/pdf') {
+        // Upload original PDF
+        const pdfPath = `${timestamp}.pdf`;
+        console.log('Uploading PDF to storage...');
+        const { error: pdfUploadError } = await supabase.storage
+          .from('invoices')
+          .upload(pdfPath, selectedFile);
 
-      if (uploadError) {
-        console.error('Upload error:', uploadError);
-        throw new Error('Failed to upload invoice file');
+        if (pdfUploadError) {
+          console.error('PDF upload error:', pdfUploadError);
+          throw new Error('Failed to upload PDF file');
+        }
+
+        invoiceFilePath = pdfPath;
+
+        // Convert first page to PNG
+        console.log('Converting PDF first page to PNG...');
+        const pngBlob = await renderPdfFirstPageToBlob(selectedFile);
+        
+        // Upload PNG for AI processing
+        tempPngPath = `${timestamp}_page1.png`;
+        const { error: pngUploadError } = await supabase.storage
+          .from('invoices')
+          .upload(tempPngPath, pngBlob);
+
+        if (pngUploadError) {
+          console.error('PNG upload error:', pngUploadError);
+          // Clean up PDF
+          await supabase.storage.from('invoices').remove([pdfPath]);
+          throw new Error('Failed to upload converted PNG');
+        }
+
+        filePathToProcess = tempPngPath;
+      } else {
+        // Image file - upload directly
+        const fileExt = selectedFile.name.split('.').pop();
+        const imagePath = `${timestamp}.${fileExt}`;
+        
+        console.log('Uploading image to storage...');
+        const { error: uploadError } = await supabase.storage
+          .from('invoices')
+          .upload(imagePath, selectedFile);
+
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          throw new Error('Failed to upload invoice file');
+        }
+
+        invoiceFilePath = imagePath;
+        filePathToProcess = imagePath;
       }
 
       console.log('File uploaded successfully, parsing invoice...');
 
       // Call edge function to parse invoice
       const { data: parseData, error: parseError } = await supabase.functions.invoke('parse-invoice', {
-        body: { filePath }
+        body: { filePath: filePathToProcess }
       });
 
       if (parseError) {
         console.error('Parse error:', parseError);
-        // Clean up uploaded file
-        await supabase.storage.from('invoices').remove([filePath]);
+        // Clean up uploaded files
+        await supabase.storage.from('invoices').remove([invoiceFilePath]);
+        if (tempPngPath) await supabase.storage.from('invoices').remove([tempPngPath]);
         throw new Error(parseError.message || 'Failed to parse invoice');
       }
 
       if (!parseData || parseData.error) {
-        // Clean up uploaded file
-        await supabase.storage.from('invoices').remove([filePath]);
+        // Clean up uploaded files
+        await supabase.storage.from('invoices').remove([invoiceFilePath]);
+        if (tempPngPath) await supabase.storage.from('invoices').remove([tempPngPath]);
         throw new Error(parseData?.error || 'Failed to extract invoice data');
+      }
+
+      // Clean up temporary PNG if it was created
+      if (tempPngPath) {
+        await supabase.storage.from('invoices').remove([tempPngPath]);
       }
 
       console.log('Invoice parsed successfully:', parseData);
       toast.success('Invoice scanned successfully!');
       
-      onDataExtracted(parseData, filePath);
+      onDataExtracted(parseData, invoiceFilePath);
       
     } catch (error: any) {
       console.error('Error processing invoice:', error);
@@ -178,7 +255,7 @@ export function InvoiceUpload({ onDataExtracted, onCancel }: InvoiceUploadProps)
             />
 
             <p className="text-xs text-muted-foreground text-center">
-              Supported: JPG, PNG, WEBP, PDF (max 10MB). PDFs will be automatically processed.
+              Supported: JPG, PNG, WEBP, PDF (max 10MB). PDFs are auto-converted on your device.
             </p>
           </div>
         ) : (
