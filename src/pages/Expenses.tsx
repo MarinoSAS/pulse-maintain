@@ -2,7 +2,13 @@ import { Layout } from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, Plus, TrendingUp, Trash2 } from "lucide-react";
+import { DollarSign, Plus, TrendingUp, Trash2, FileText, ExternalLink } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +36,7 @@ type Expense = {
   vendor: string | null;
   company?: 'Unifruit' | 'Limnia' | 'HRC' | 'Other';
   asset: { asset_id: string; name: string } | null;
+  invoice_file_path: string | null;
 };
 
 export default function Expenses() {
@@ -37,6 +44,8 @@ export default function Expenses() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const { isAdmin } = useUserRole();
+  const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
+  const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
 
   useEffect(() => {
     loadExpenses();
@@ -74,6 +83,23 @@ export default function Expenses() {
       loadExpenses();
     } catch (error: any) {
       toast.error(error.message || "Failed to delete expense");
+    }
+  };
+
+  const viewInvoice = async (filePath: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('invoices')
+        .createSignedUrl(filePath, 3600); // 1 hour expiry
+
+      if (error) throw error;
+      
+      if (data?.signedUrl) {
+        setInvoiceUrl(data.signedUrl);
+        setSelectedInvoice(filePath);
+      }
+    } catch (error: any) {
+      toast.error("Failed to load invoice");
     }
   };
 
@@ -186,6 +212,17 @@ export default function Expenses() {
                         {expense.invoice_number && <span className="text-xs md:text-sm">Invoice: {expense.invoice_number}</span>}
                         {expense.vendor && <span className="text-xs md:text-sm">Vendor: {expense.vendor}</span>}
                         <span className="text-xs md:text-sm">{expense.date}</span>
+                        {expense.invoice_file_path && (
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="h-auto p-0 text-xs md:text-sm"
+                            onClick={() => viewInvoice(expense.invoice_file_path!)}
+                          >
+                            <FileText className="w-3 h-3 mr-1" />
+                            View Invoice
+                          </Button>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center justify-between md:justify-end gap-4">
@@ -225,6 +262,45 @@ export default function Expenses() {
             )}
           </CardContent>
         </Card>
+
+        {/* Invoice Viewer Dialog */}
+        <Dialog open={selectedInvoice !== null} onOpenChange={() => {
+          setSelectedInvoice(null);
+          setInvoiceUrl(null);
+        }}>
+          <DialogContent className="max-w-4xl max-h-[90vh]">
+            <DialogHeader>
+              <DialogTitle>Invoice Document</DialogTitle>
+            </DialogHeader>
+            {invoiceUrl && (
+              <div className="space-y-4">
+                {selectedInvoice?.endsWith('.pdf') ? (
+                  <div className="space-y-4">
+                    <iframe
+                      src={invoiceUrl}
+                      className="w-full h-[70vh] border border-border rounded-lg"
+                      title="Invoice PDF"
+                    />
+                    <Button
+                      onClick={() => window.open(invoiceUrl, '_blank')}
+                      className="w-full"
+                      variant="outline"
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Open in New Tab
+                    </Button>
+                  </div>
+                ) : (
+                  <img
+                    src={invoiceUrl}
+                    alt="Invoice"
+                    className="w-full h-auto rounded-lg"
+                  />
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

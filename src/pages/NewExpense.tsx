@@ -25,7 +25,12 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ScanLine } from "lucide-react";
+import { InvoiceUpload, type ExtractedInvoiceData } from "@/components/InvoiceUpload";
+import {
+  Dialog,
+  DialogContent,
+} from "@/components/ui/dialog";
 
 const expenseSchema = z.object({
   assetId: z.string().min(1, "Please select an asset"),
@@ -53,6 +58,9 @@ export default function NewExpense() {
   const [vendors, setVendors] = useState<any[]>([]);
   const [requirements, setRequirements] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showInvoiceUpload, setShowInvoiceUpload] = useState(false);
+  const [invoiceFilePath, setInvoiceFilePath] = useState<string | null>(null);
+  const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
   
   const form = useForm<z.infer<typeof expenseSchema>>({
     resolver: zodResolver(expenseSchema),
@@ -132,6 +140,59 @@ export default function NewExpense() {
     }
   };
 
+  const handleInvoiceDataExtracted = (data: ExtractedInvoiceData, filePath: string) => {
+    const fieldsSet = new Set<string>();
+    
+    // Set the cost
+    if (data.amount) {
+      form.setValue("cost", data.amount.toString());
+      fieldsSet.add("cost");
+    }
+    
+    // Set the date
+    if (data.date) {
+      form.setValue("date", data.date);
+      fieldsSet.add("date");
+    }
+    
+    // Set the service type
+    if (data.service_type) {
+      form.setValue("serviceType", data.service_type);
+      fieldsSet.add("serviceType");
+    }
+    
+    // Set invoice number
+    if (data.invoice_number) {
+      form.setValue("invoiceNumber", data.invoice_number);
+      fieldsSet.add("invoiceNumber");
+    }
+    
+    // Set description
+    if (data.description) {
+      form.setValue("description", data.description);
+      fieldsSet.add("description");
+    }
+    
+    // Try to match vendor by name
+    if (data.vendor_name && vendors.length > 0) {
+      const matchedVendor = vendors.find(v => 
+        v.name.toLowerCase().includes(data.vendor_name!.toLowerCase()) ||
+        data.vendor_name!.toLowerCase().includes(v.name.toLowerCase())
+      );
+      
+      if (matchedVendor) {
+        form.setValue("vendorId", matchedVendor.id);
+        fieldsSet.add("vendorId");
+      }
+    }
+    
+    setAutoFilledFields(fieldsSet);
+    setInvoiceFilePath(filePath);
+    setShowInvoiceUpload(false);
+    
+    toast.success("Invoice data extracted! Please review and select an asset.");
+  };
+
   const onSubmit = async (values: z.infer<typeof expenseSchema>) => {
     setIsSubmitting(true);
     try {
@@ -148,6 +209,7 @@ export default function NewExpense() {
         requirement_id: values.requirementId || null,
         created_by: user?.id,
         company: values.company || null,
+        invoice_file_path: invoiceFilePath || null,
       };
 
       if (values.odometerAtService) {
@@ -192,8 +254,20 @@ export default function NewExpense() {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Expenses
             </Button>
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground">Record New Expense</h1>
-            <p className="text-muted-foreground mt-1 text-sm md:text-base">Enter the details of the maintenance expense</p>
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">
+              <div>
+                <h1 className="text-3xl md:text-4xl font-bold text-foreground">Record New Expense</h1>
+                <p className="text-muted-foreground mt-1 text-sm md:text-base">Enter the details of the maintenance expense</p>
+              </div>
+              <Button
+                onClick={() => setShowInvoiceUpload(true)}
+                variant="outline"
+                className="w-full md:w-auto"
+              >
+                <ScanLine className="w-4 h-4 mr-2" />
+                Scan Invoice
+              </Button>
+            </div>
           </div>
 
           <Form {...form}>
@@ -228,8 +302,13 @@ export default function NewExpense() {
                 name="serviceType"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Service Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormLabel className="flex items-center gap-2">
+                      Service Type
+                      {autoFilledFields.has("serviceType") && (
+                        <Badge variant="secondary" className="text-xs">Auto-filled</Badge>
+                      )}
+                    </FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select service type" />
@@ -259,7 +338,12 @@ export default function NewExpense() {
                 name="cost"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Cost</FormLabel>
+                    <FormLabel className="flex items-center gap-2">
+                      Cost
+                      {autoFilledFields.has("cost") && (
+                        <Badge variant="secondary" className="text-xs">Auto-filled</Badge>
+                      )}
+                    </FormLabel>
                     <FormControl>
                       <Input type="number" step="0.01" placeholder="450.00" {...field} />
                     </FormControl>
@@ -273,7 +357,12 @@ export default function NewExpense() {
                 name="invoiceNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Invoice Number (Optional)</FormLabel>
+                    <FormLabel className="flex items-center gap-2">
+                      Invoice Number (Optional)
+                      {autoFilledFields.has("invoiceNumber") && (
+                        <Badge variant="secondary" className="text-xs">Auto-filled</Badge>
+                      )}
+                    </FormLabel>
                     <FormControl>
                       <Input placeholder="12345" {...field} />
                     </FormControl>
@@ -287,7 +376,12 @@ export default function NewExpense() {
                 name="date"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Service Date</FormLabel>
+                    <FormLabel className="flex items-center gap-2">
+                      Service Date
+                      {autoFilledFields.has("date") && (
+                        <Badge variant="secondary" className="text-xs">Auto-filled</Badge>
+                      )}
+                    </FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -301,8 +395,13 @@ export default function NewExpense() {
                 name="vendorId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Vendor (Optional)</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormLabel className="flex items-center gap-2">
+                      Vendor (Optional)
+                      {autoFilledFields.has("vendorId") && (
+                        <Badge variant="secondary" className="text-xs">Auto-filled</Badge>
+                      )}
+                    </FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select a vendor" />
@@ -326,7 +425,12 @@ export default function NewExpense() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description (Optional)</FormLabel>
+                    <FormLabel className="flex items-center gap-2">
+                      Description (Optional)
+                      {autoFilledFields.has("description") && (
+                        <Badge variant="secondary" className="text-xs">Auto-filled</Badge>
+                      )}
+                    </FormLabel>
                     <FormControl>
                       <Textarea 
                         placeholder="Additional notes about this service..." 
@@ -437,6 +541,16 @@ export default function NewExpense() {
             </Button>
           </div>
         </div>
+
+        {/* Invoice Upload Dialog */}
+        <Dialog open={showInvoiceUpload} onOpenChange={setShowInvoiceUpload}>
+          <DialogContent className="max-w-lg">
+            <InvoiceUpload
+              onDataExtracted={handleInvoiceDataExtracted}
+              onCancel={() => setShowInvoiceUpload(false)}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

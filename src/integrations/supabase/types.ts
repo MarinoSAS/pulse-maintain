@@ -175,6 +175,7 @@ export type Database = {
           date: string
           description: string | null
           id: string
+          invoice_file_path: string | null
           invoice_number: string | null
           maintenance_category:
             | Database["public"]["Enums"]["maintenance_type_enum"]
@@ -197,6 +198,7 @@ export type Database = {
           date: string
           description?: string | null
           id?: string
+          invoice_file_path?: string | null
           invoice_number?: string | null
           maintenance_category?:
             | Database["public"]["Enums"]["maintenance_type_enum"]
@@ -219,6 +221,7 @@ export type Database = {
           date?: string
           description?: string | null
           id?: string
+          invoice_file_path?: string | null
           invoice_number?: string | null
           maintenance_category?:
             | Database["public"]["Enums"]["maintenance_type_enum"]
