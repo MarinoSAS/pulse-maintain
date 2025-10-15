@@ -14,7 +14,17 @@ async function getPdfAsBase64(pdfUrl: string): Promise<string> {
   }
   
   const arrayBuffer = await response.arrayBuffer();
-  const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+  const bytes = new Uint8Array(arrayBuffer);
+  
+  // Convert to base64 in chunks to avoid stack overflow
+  let binary = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.slice(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  
+  const base64 = btoa(binary);
   console.log('PDF converted to base64 for AI processing');
   return `data:application/pdf;base64,${base64}`;
 }
