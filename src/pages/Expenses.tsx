@@ -34,6 +34,8 @@ type Expense = {
   date: string;
   invoice_number: string | null;
   vendor: string | null;
+  vendor_id: string | null;
+  vendors: { name: string } | null;
   company?: 'Unifruit' | 'Limnia' | 'HRC' | 'Other';
   asset: { asset_id: string; name: string } | null;
   invoice_file_path: string | null;
@@ -58,7 +60,8 @@ export default function Expenses() {
         .from("expenses")
         .select(`
           *,
-          asset:assets(asset_id, name)
+          asset:assets(asset_id, name),
+          vendors(name)
         `)
         .order("date", { ascending: false });
 
@@ -212,7 +215,9 @@ export default function Expenses() {
                       )}
                       <div className="flex flex-wrap items-center gap-2 md:gap-4 mt-2 text-sm text-muted-foreground">
                         {expense.invoice_number && <span className="text-xs md:text-sm">Invoice: {expense.invoice_number}</span>}
-                        {expense.vendor && <span className="text-xs md:text-sm">Vendor: {expense.vendor}</span>}
+                        {(expense.vendors?.name || expense.vendor) && (
+                          <span className="text-xs md:text-sm">Vendor: {expense.vendors?.name || expense.vendor}</span>
+                        )}
                         <span className="text-xs md:text-sm">{expense.date}</span>
                         {expense.invoice_file_path && (
                           <Button
@@ -310,10 +315,10 @@ export default function Expenses() {
                       <p className="font-semibold">{selectedExpense.invoice_number}</p>
                     </div>
                   )}
-                  {selectedExpense.vendor && (
+                  {(selectedExpense.vendors?.name || selectedExpense.vendor) && (
                     <div>
                       <p className="text-sm text-muted-foreground">Vendor</p>
-                      <p className="font-semibold">{selectedExpense.vendor}</p>
+                      <p className="font-semibold">{selectedExpense.vendors?.name || selectedExpense.vendor}</p>
                     </div>
                   )}
                   {selectedExpense.asset && (
