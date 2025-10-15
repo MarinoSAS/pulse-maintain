@@ -182,9 +182,9 @@ export default function Reports() {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Expenses");
     
     const summaryData = [
-      { Metric: "Total Expenses", Value: `$${totalExpenses.toFixed(2)}` },
+      { Metric: "Total Expenses", Value: `€${totalExpenses.toFixed(2)}` },
       { Metric: "Number of Expenses", Value: filteredExpenses.length },
-      { Metric: "Average Expense", Value: `$${avgExpense.toFixed(2)}` },
+      { Metric: "Average Expense", Value: `€${avgExpense.toFixed(2)}` },
     ];
     const summarySheet = XLSX.utils.json_to_sheet(summaryData);
     XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
@@ -206,9 +206,9 @@ export default function Reports() {
       startY: 40,
       head: [['Metric', 'Value']],
       body: [
-        ['Total Expenses', `$${totalExpenses.toLocaleString()}`],
+        ['Total Expenses', `€${totalExpenses.toLocaleString()}`],
         ['Number of Expenses', filteredExpenses.length.toString()],
-        ['Average Expense', `$${avgExpense.toFixed(2)}`],
+        ['Average Expense', `€${avgExpense.toFixed(2)}`],
       ],
     });
     
@@ -220,7 +220,7 @@ export default function Reports() {
         e.description || '-',
         e.company,
         e.category,
-        `$${e.amount.toFixed(2)}`
+        `€${e.amount.toFixed(2)}`
       ]),
     });
     
@@ -387,7 +387,7 @@ export default function Reports() {
                         cx="50%"
                         cy="50%"
                         outerRadius={100}
-                        label={(entry) => `${entry.category}: $${entry.amount.toFixed(0)}`}
+                        label={(entry) => `${entry.category}: €${entry.amount.toFixed(0)}`}
                       >
                         {categoryData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

@@ -132,7 +132,7 @@ export default function Expenses() {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Expenses</p>
-                  <p className="text-3xl font-bold mt-2">${totalExpenses.toLocaleString()}</p>
+                  <p className="text-3xl font-bold mt-2">€{totalExpenses.toLocaleString()}</p>
                   <p className="text-sm mt-2 font-medium text-muted-foreground flex items-center gap-1">
                     <TrendingUp className="w-4 h-4" />
                     {expenses.length} expense{expenses.length !== 1 ? 's' : ''}
@@ -150,7 +150,7 @@ export default function Expenses() {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Average Cost</p>
-                  <p className="text-3xl font-bold mt-2">${avgExpense.toFixed(0)}</p>
+                  <p className="text-3xl font-bold mt-2">€{avgExpense.toFixed(0)}</p>
                   <p className="text-sm mt-2 font-medium text-muted-foreground">Per expense</p>
                 </div>
                 <div className="p-3 rounded-xl bg-primary/10">
@@ -165,7 +165,7 @@ export default function Expenses() {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Repair Costs</p>
-                  <p className="text-3xl font-bold mt-2">${repairExpenses.toLocaleString()}</p>
+                  <p className="text-3xl font-bold mt-2">€{repairExpenses.toLocaleString()}</p>
                   <p className="text-sm mt-2 font-medium text-muted-foreground">This month</p>
                 </div>
                 <div className="p-3 rounded-xl bg-warning/10">
@@ -227,7 +227,7 @@ export default function Expenses() {
                     </div>
                     <div className="flex items-center justify-between md:justify-end gap-4">
                       <div className="text-left md:text-right">
-                        <p className="text-xl md:text-2xl font-bold text-accent">${expense.amount.toFixed(2)}</p>
+                        <p className="text-xl md:text-2xl font-bold text-accent">€{expense.amount.toFixed(2)}</p>
                       </div>
                       {isAdmin && (
                         <AlertDialog>

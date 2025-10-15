@@ -325,7 +325,7 @@ export default function AssetDetail() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Total Expenses"
-            value={`$${totalExpenses.toFixed(2)}`}
+            value={`€${totalExpenses.toFixed(2)}`}
             icon={DollarSign}
             variant="accent"
           />
@@ -569,7 +569,7 @@ export default function AssetDetail() {
                 <div className="mb-6 p-4 bg-accent/5 rounded-lg border border-accent/20">
                   <p className="text-sm text-muted-foreground">Total for Selected Period</p>
                   <p className="text-3xl font-bold text-accent mt-1">
-                    ${totalExpenses.toFixed(2)}
+                    €{totalExpenses.toFixed(2)}
                   </p>
                 </div>
 
@@ -599,7 +599,7 @@ export default function AssetDetail() {
                           </div>
                         </div>
                         <p className="text-lg font-bold text-accent">
-                          ${Number(expense.amount).toFixed(2)}
+                          €{Number(expense.amount).toFixed(2)}
                         </p>
                       </div>
                     ))}
@@ -731,7 +731,7 @@ export default function AssetDetail() {
                                   {event.category}
                                 </Badge>
                                 <span className="font-bold text-accent">
-                                  ${Number(event.amount).toFixed(2)}
+                                  €{Number(event.amount).toFixed(2)}
                                 </span>
                               </div>
                             )}

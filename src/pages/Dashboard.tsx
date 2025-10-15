@@ -216,7 +216,7 @@ export default function Dashboard() {
           {!isManager && (
             <StatCard
               title="Monthly Expenses"
-              value={loading ? "..." : `$${stats.monthlyExpenses.toLocaleString()}`}
+              value={loading ? "..." : `€${stats.monthlyExpenses.toLocaleString()}`}
               icon={TrendingUp}
               variant="accent"
             />

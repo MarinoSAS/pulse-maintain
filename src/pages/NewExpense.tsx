@@ -250,7 +250,7 @@ export default function NewExpense() {
     // Enhanced success message with VAT info
     if (data.vat_amount && data.total_amount) {
       toast.success(
-        `Invoice scanned! Net: $${data.amount.toFixed(2)} + VAT: $${data.vat_amount.toFixed(2)} = Total: $${data.total_amount.toFixed(2)}`
+        `Invoice scanned! Net: €${data.amount.toFixed(2)} + VAT: €${data.vat_amount.toFixed(2)} = Total: €${data.total_amount.toFixed(2)}`
       );
     } else {
       toast.success("Invoice scanned successfully!");
