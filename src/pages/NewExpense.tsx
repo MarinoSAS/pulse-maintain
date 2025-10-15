@@ -30,6 +30,8 @@ import { InvoiceUpload, type ExtractedInvoiceData } from "@/components/InvoiceUp
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 
 const expenseSchema = z.object({
@@ -621,6 +623,8 @@ export default function NewExpense() {
         {/* Invoice Upload Dialog */}
         <Dialog open={showInvoiceUpload} onOpenChange={setShowInvoiceUpload}>
           <DialogContent className="max-w-lg">
+            <DialogTitle>Scan Invoice</DialogTitle>
+            <DialogDescription>Upload or photograph an invoice to auto-fill expense details.</DialogDescription>
             <InvoiceUpload
               onDataExtracted={handleInvoiceDataExtracted}
               onCancel={() => setShowInvoiceUpload(false)}

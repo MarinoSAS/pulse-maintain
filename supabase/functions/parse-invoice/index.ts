@@ -70,14 +70,7 @@ serve(async (req) => {
 
     console.log('Generated signed URL for invoice');
 
-    let imageUrl: string;
-
-    if (isPdfFile(filePath)) {
-      console.log('PDF file detected, processing...');
-      imageUrl = await getPdfAsBase64(urlData.signedUrl);
-    } else {
-      imageUrl = urlData.signedUrl;
-    }
+    const imageUrl = urlData.signedUrl;
 
     // Call Lovable AI with the invoice image
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
