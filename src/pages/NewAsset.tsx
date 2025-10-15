@@ -31,9 +31,7 @@ const assetFormSchema = z.object({
   assetId: z.string().min(1, "Asset ID is required").max(50, "Asset ID too long"),
   name: z.string().min(1, "Asset name is required").max(100, "Asset name too long"),
   description: z.string().max(500, "Description too long").optional(),
-  category: z.enum(["Vehicles", "Equipment", "Tools", "Facilities"], {
-    required_error: "Please select a category",
-  }),
+  category: z.string().min(1, "Please select a category"),
   company: z.enum(["Unifruit", "Limnia", "HRC", "Other"], {
     required_error: "Please select a company",
   }),
@@ -48,6 +46,7 @@ const assetFormSchema = z.object({
 export default function NewAsset() {
   const navigate = useNavigate();
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [requirements, setRequirements] = useState<MaintenanceRequirement[]>([]);
   const { isAdmin } = useUserRole();
@@ -67,8 +66,23 @@ export default function NewAsset() {
   const selectedCategory = form.watch("category");
 
   useEffect(() => {
+    loadCategories();
     loadTeamMembers();
   }, []);
+
+  const loadCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("asset_categories")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error: any) {
+      console.error("Failed to load categories:", error);
+    }
+  };
 
   const loadTeamMembers = async () => {
     try {
@@ -101,7 +115,7 @@ export default function NewAsset() {
         asset_id: values.assetId,
         name: values.name,
         description: values.description || null,
-        category: values.category,
+        category: values.category as any,
         company: values.company,
         status: values.status,
         assigned_to: values.assignedTo || null,
@@ -224,10 +238,11 @@ export default function NewAsset() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="Vehicles">Vehicles</SelectItem>
-                        <SelectItem value="Equipment">Equipment</SelectItem>
-                        <SelectItem value="Tools">Tools</SelectItem>
-                        <SelectItem value="Facilities">Facilities</SelectItem>
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.name}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />

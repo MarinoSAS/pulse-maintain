@@ -2,7 +2,7 @@ import { Layout } from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Truck, Package, Wrench, Building2, Plus, Trash2 } from "lucide-react";
+import { Package, Plus, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,13 +19,15 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useNavigate } from "react-router-dom";
+import { getIconComponent } from "@/lib/iconMap";
 
-const assetCategories = [
-  { name: "Vehicles", count: 0, icon: Truck, color: "bg-primary/10 text-primary" },
-  { name: "Equipment", count: 0, icon: Package, color: "bg-accent/10 text-accent" },
-  { name: "Tools", count: 0, icon: Wrench, color: "bg-success/10 text-success" },
-  { name: "Facilities", count: 0, icon: Building2, color: "bg-warning/10 text-warning" },
-];
+type AssetCategory = {
+  id: string;
+  name: string;
+  icon: string | null;
+  color: string | null;
+  asset_count?: number;
+};
 
 type Asset = {
   id: string;
@@ -48,18 +50,28 @@ type Asset = {
 export default function Assets() {
   const navigate = useNavigate();
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [categories, setCategories] = useState<AssetCategory[]>([]);
   const [loading, setLoading] = useState(true);
-  const [categoryCounts, setCategoryCounts] = useState({
-    Vehicles: 0,
-    Equipment: 0,
-    Tools: 0,
-    Facilities: 0,
-  });
   const { isAdmin } = useUserRole();
 
   useEffect(() => {
+    loadCategories();
     loadAssets();
   }, []);
+
+  const loadCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("asset_categories")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error: any) {
+      toast.error("Failed to load asset categories");
+    }
+  };
 
   const loadAssets = async () => {
     try {
@@ -75,12 +87,12 @@ export default function Assets() {
       
       setAssets(data || []);
       
-      // Calculate category counts
-      const counts = { Vehicles: 0, Equipment: 0, Tools: 0, Facilities: 0 };
-      data?.forEach((asset) => {
-        counts[asset.category as keyof typeof counts]++;
+      // Calculate category counts dynamically
+      const updatedCategories = categories.map(cat => {
+        const count = data?.filter(asset => asset.category === cat.name).length || 0;
+        return { ...cat, asset_count: count };
       });
-      setCategoryCounts(counts);
+      setCategories(updatedCategories);
     } catch (error: any) {
       toast.error("Failed to load assets");
     } finally {
@@ -124,23 +136,26 @@ export default function Assets() {
 
         {/* Category Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {assetCategories.map((category) => (
-            <Card key={category.name} className="shadow-md bg-gradient-card hover:shadow-lg transition-all cursor-pointer">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">{category.name}</p>
-                    <p className="text-3xl font-bold mt-2">
-                      {categoryCounts[category.name as keyof typeof categoryCounts]}
-                    </p>
+          {categories.map((category) => {
+            const IconComponent = getIconComponent(category.icon);
+            return (
+              <Card key={category.id} className="shadow-md bg-gradient-card hover:shadow-lg transition-all cursor-pointer">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">{category.name}</p>
+                      <p className="text-3xl font-bold mt-2">
+                        {category.asset_count || 0}
+                      </p>
+                    </div>
+                    <div className={`p-3 rounded-xl ${category.color || "bg-primary/10 text-primary"}`}>
+                      <IconComponent className="w-6 h-6" />
+                    </div>
                   </div>
-                  <div className={`p-3 rounded-xl ${category.color}`}>
-                    <category.icon className="w-6 h-6" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {/* Assets List */}
