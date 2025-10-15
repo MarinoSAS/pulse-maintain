@@ -74,10 +74,7 @@ const expenseSchema = z.object({
       message: "Cost must be a positive number"
     }),
   date: z.string().min(1, "Date is required"),
-  invoiceNumber: z.string()
-    .regex(/^\d*$/, "Invoice number must contain only numbers")
-    .optional()
-    .or(z.literal("")),
+  invoiceNumber: z.string().optional(),
   vendorId: z.string().optional(),
   description: z.string().max(500, "Description too long").optional(),
   requirementId: z.string().optional(),
