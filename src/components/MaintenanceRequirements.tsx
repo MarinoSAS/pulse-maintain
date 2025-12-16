@@ -10,9 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Wrench } from "lucide-react";
-import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export type MaintenanceRequirement = {
   id?: string;
@@ -29,13 +28,6 @@ type MaintenanceRequirementsProps = {
   readOnly?: boolean;
 };
 
-const COMMON_MAINTENANCE_TYPES = {
-  Vehicles: ["Service", "Oil Change", "Inspection", "Tachograph Calibration", "MOT", "Brake Service", "Tire Rotation"],
-  Equipment: ["Service", "Oil Change", "Inspection", "Parts Replacement"],
-  Tools: ["Inspection", "Calibration", "Service"],
-  Facilities: ["Inspection", "Maintenance"],
-};
-
 export function MaintenanceRequirements({
   category,
   value,
@@ -43,10 +35,54 @@ export function MaintenanceRequirements({
   readOnly = false,
 }: MaintenanceRequirementsProps) {
   const [requirements, setRequirements] = useState<MaintenanceRequirement[]>(value);
+  const [maintenanceTypes, setMaintenanceTypes] = useState<string[]>([]);
 
   useEffect(() => {
     setRequirements(value);
   }, [value]);
+
+  useEffect(() => {
+    const loadMaintenanceTypes = async () => {
+      if (!category) {
+        setMaintenanceTypes([]);
+        return;
+      }
+
+      // 1. Get the asset category ID by name
+      const { data: categoryData } = await supabase
+        .from("asset_categories")
+        .select("id")
+        .eq("name", category)
+        .maybeSingle();
+
+      if (!categoryData) {
+        setMaintenanceTypes([]);
+        return;
+      }
+
+      // 2. Get linked maintenance type IDs from junction table
+      const { data: linkData } = await supabase
+        .from("category_maintenance_types")
+        .select("maintenance_type_id")
+        .eq("asset_category_id", categoryData.id);
+
+      if (!linkData?.length) {
+        setMaintenanceTypes([]);
+        return;
+      }
+
+      // 3. Get maintenance type names
+      const typeIds = linkData.map((l) => l.maintenance_type_id).filter(Boolean);
+      const { data: types } = await supabase
+        .from("maintenance_types")
+        .select("name")
+        .in("id", typeIds);
+
+      setMaintenanceTypes(types?.map((t) => t.name) || []);
+    };
+
+    loadMaintenanceTypes();
+  }, [category]);
 
   const addRequirement = () => {
     const newReq: MaintenanceRequirement = {
@@ -72,10 +108,7 @@ export function MaintenanceRequirements({
     onChange(updated);
   };
 
-  const getMaintenanceTypes = () => {
-    if (!category) return [];
-    return COMMON_MAINTENANCE_TYPES[category as keyof typeof COMMON_MAINTENANCE_TYPES] || [];
-  };
+  const getMaintenanceTypes = () => maintenanceTypes;
 
   return (
     <Card>
