@@ -328,12 +328,26 @@ export default function Team() {
   }
 
 
+  // Calculate role counts
+  const roleCounts = teamMembers.reduce((acc, member) => {
+    const role = member.role || 'Other';
+    acc[role] = (acc[role] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const totalMembers = teamMembers.length;
+
   return (
     <Layout>
       <div className="p-4 md:p-8 space-y-6 md:space-y-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex-1">
-            <h1 className="text-2xl md:text-4xl font-bold text-foreground">Team Management</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl md:text-4xl font-bold text-foreground">Team Management</h1>
+              <Badge variant="secondary" className="text-lg px-3 py-1">
+                {totalMembers}
+              </Badge>
+            </div>
             <p className="text-muted-foreground mt-1 text-sm md:text-base">Manage your team members and invitations</p>
           </div>
           {isAdmin && (
@@ -517,7 +531,21 @@ export default function Team() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="members" className="space-y-4">
+          <TabsContent value="members" className="space-y-6">
+            {/* Role breakdown cards */}
+            {Object.keys(roleCounts).length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                {Object.entries(roleCounts).map(([role, count]) => (
+                  <Card key={role} className="shadow-sm bg-gradient-card">
+                    <CardContent className="p-4 text-center">
+                      <p className="text-2xl font-bold text-foreground">{count}</p>
+                      <p className="text-sm text-muted-foreground">{role}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
             {teamMembers.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />

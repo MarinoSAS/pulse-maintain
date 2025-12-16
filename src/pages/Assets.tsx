@@ -55,46 +55,32 @@ export default function Assets() {
   const { isAdmin } = useUserRole();
 
   useEffect(() => {
-    loadCategories();
-    loadAssets();
+    loadData();
   }, []);
 
-  const loadCategories = async () => {
+  const loadData = async () => {
+    setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("asset_categories")
-        .select("*")
-        .order("name");
+      // Load categories and assets in parallel
+      const [categoriesResult, assetsResult] = await Promise.all([
+        supabase.from("asset_categories").select("*").order("name"),
+        supabase.from("assets").select(`*, team_member:team_members(name)`).order("created_at", { ascending: false })
+      ]);
 
-      if (error) throw error;
-      setCategories(data || []);
+      if (categoriesResult.error) throw categoriesResult.error;
+      if (assetsResult.error) throw assetsResult.error;
+
+      const assetsData = assetsResult.data || [];
+      setAssets(assetsData);
+
+      // Calculate category counts from assets data
+      const categoriesWithCounts = (categoriesResult.data || []).map(cat => ({
+        ...cat,
+        asset_count: assetsData.filter(asset => asset.category === cat.name).length
+      }));
+      setCategories(categoriesWithCounts);
     } catch (error: any) {
-      toast.error("Failed to load asset categories");
-    }
-  };
-
-  const loadAssets = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("assets")
-        .select(`
-          *,
-          team_member:team_members(name)
-        `)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      
-      setAssets(data || []);
-      
-      // Calculate category counts dynamically
-      const updatedCategories = categories.map(cat => {
-        const count = data?.filter(asset => asset.category === cat.name).length || 0;
-        return { ...cat, asset_count: count };
-      });
-      setCategories(updatedCategories);
-    } catch (error: any) {
-      toast.error("Failed to load assets");
+      toast.error("Failed to load data");
     } finally {
       setLoading(false);
     }
@@ -110,11 +96,13 @@ export default function Assets() {
       if (error) throw error;
       
       toast.success(`${name} deleted successfully`);
-      loadAssets();
+      loadData();
     } catch (error: any) {
       toast.error(error.message || "Failed to delete asset");
     }
   };
+
+  const totalAssets = assets.length;
 
 
   return (
@@ -122,7 +110,12 @@ export default function Assets() {
       <div className="p-4 md:p-8 space-y-6 md:space-y-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex-1">
-            <h1 className="text-2xl md:text-4xl font-bold text-foreground">Asset Registry</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl md:text-4xl font-bold text-foreground">Asset Registry</h1>
+              <Badge variant="secondary" className="text-lg px-3 py-1">
+                {totalAssets}
+              </Badge>
+            </div>
             <p className="text-muted-foreground mt-1 text-sm md:text-base">Manage your fleet and equipment</p>
           </div>
           <Button 

@@ -74,22 +74,22 @@ export default function Dashboard() {
     setTasksLoading(true);
     
     try {
-      // Load assets count
-      const { data: assets } = await supabase
+      // Load assets count - use count property, not length
+      const { count: assetCount } = await supabase
         .from("assets")
-        .select("id", { count: "exact", head: true });
+        .select("*", { count: "exact", head: true });
       
-      // Load pending tasks
-      const { data: tasks } = await supabase
+      // Load pending tasks count
+      const { count: pendingTaskCount } = await supabase
         .from("tasks")
-        .select("id", { count: "exact", head: true })
+        .select("*", { count: "exact", head: true })
         .eq("status", "To Do");
       
       // Load completed tasks this month
       const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-      const { data: completedTasks } = await supabase
+      const { count: completedTaskCount } = await supabase
         .from("tasks")
-        .select("id", { count: "exact", head: true })
+        .select("*", { count: "exact", head: true })
         .eq("status", "Done")
         .gte("updated_at", firstDayOfMonth);
       
@@ -102,9 +102,9 @@ export default function Dashboard() {
       const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
       
       setStats({
-        totalAssets: assets?.length || 0,
-        pendingTasks: tasks?.length || 0,
-        completedThisMonth: completedTasks?.length || 0,
+        totalAssets: assetCount || 0,
+        pendingTasks: pendingTaskCount || 0,
+        completedThisMonth: completedTaskCount || 0,
         monthlyExpenses: totalExpenses
       });
 
