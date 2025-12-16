@@ -484,8 +484,8 @@ export default function NewAsset() {
                 )}
               />
               
-              {/* Current Odometer for Vehicles */}
-              {selectedCategory === "Vehicles" && (
+              {/* Current Odometer for Vehicle Types */}
+              {["Vehicles", "Company Cars", "Trucks"].includes(selectedCategory) && (
                 <FormField
                   control={form.control}
                   name="odometerReading"
