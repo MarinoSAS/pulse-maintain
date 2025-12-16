@@ -57,6 +57,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInDays } from "date-fns";
 import { useUserRole } from "@/hooks/useUserRole";
 import { MaintenanceRequirements, MaintenanceRequirement } from "@/components/MaintenanceRequirements";
+import { findMatchingExpenses } from "@/lib/maintenanceHierarchy";
 
 type TeamMember = {
   id: string;
@@ -894,9 +895,11 @@ export default function AssetDetail() {
                   ) : (
                     <div className="space-y-3">
                       {requirements.map((req) => {
-                        // Auto-detect last service from expenses
-                        const matchingExpenses = expenses.filter(
-                          (e) => e.category.toLowerCase() === req.maintenance_type.toLowerCase()
+                        // Auto-detect last service from expenses (using hierarchy)
+                        const matchingExpenses = findMatchingExpenses(
+                          expenses.map(e => ({ ...e, asset_id: id })),
+                          req.maintenance_type,
+                          id
                         );
                         const lastExpense = matchingExpenses.length > 0 ? matchingExpenses[0] : null;
                         

@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Calendar, Gauge, Wrench } from "lucide-react";
-import { differenceInDays, format } from "date-fns";
+import { AlertTriangle, Wrench } from "lucide-react";
+import { differenceInDays } from "date-fns";
+import { findMatchingExpenses } from "@/lib/maintenanceHierarchy";
 
 type MaintenanceAlert = {
   asset_id: string;
@@ -78,12 +79,12 @@ export function MaintenanceAlerts() {
         const asset = assets?.find((a) => a.id === req.asset_id);
         if (!asset) return;
 
-        // Find matching expenses for this requirement
-        const matchingExpenses = expenses?.filter(
-          (e) => 
-            e.asset_id === req.asset_id && 
-            e.category.toLowerCase() === req.maintenance_type.toLowerCase()
-        ) || [];
+        // Find matching expenses for this requirement (using hierarchy)
+        const matchingExpenses = findMatchingExpenses(
+          expenses || [],
+          req.maintenance_type,
+          req.asset_id
+        );
         
         const lastExpense = matchingExpenses.length > 0 ? matchingExpenses[0] : null;
 
