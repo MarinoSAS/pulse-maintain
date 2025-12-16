@@ -105,6 +105,7 @@ type Expense = {
   category: string;
   invoice_number: string | null;
   vendor: string | null;
+  odometer_at_service: number | null;
 };
 
 type MaintenanceSchedule = {
@@ -893,22 +894,46 @@ export default function AssetDetail() {
                   ) : (
                     <div className="space-y-3">
                       {requirements.map((req) => {
-                        const daysSinceCompleted = req.last_completed_at 
-                          ? differenceInDays(new Date(), new Date(req.last_completed_at))
+                        // Auto-detect last service from expenses
+                        const matchingExpenses = expenses.filter(
+                          (e) => e.category.toLowerCase() === req.maintenance_type.toLowerCase()
+                        );
+                        const lastExpense = matchingExpenses.length > 0 ? matchingExpenses[0] : null;
+                        
+                        // Use auto-detected values if available, fallback to stored values
+                        const lastCompletedAt = lastExpense?.date || req.last_completed_at;
+                        const lastCompletedOdometer = lastExpense?.odometer_at_service || req.last_completed_odometer;
+                        
+                        const daysSinceCompleted = lastCompletedAt 
+                          ? differenceInDays(new Date(), new Date(lastCompletedAt))
                           : null;
-                        const kmSinceCompleted = req.last_completed_odometer && asset?.odometer_reading
-                          ? asset.odometer_reading - req.last_completed_odometer
+                        const kmSinceCompleted = lastCompletedOdometer && asset?.odometer_reading
+                          ? asset.odometer_reading - lastCompletedOdometer
+                          : null;
+
+                        // Calculate next due
+                        const nextDueDate = lastCompletedAt && req.interval_days
+                          ? new Date(new Date(lastCompletedAt).getTime() + req.interval_days * 24 * 60 * 60 * 1000)
+                          : null;
+                        const nextDueOdometer = lastCompletedOdometer && req.interval_km
+                          ? lastCompletedOdometer + req.interval_km
                           : null;
 
                         const isDueByDays = req.interval_days && daysSinceCompleted !== null && daysSinceCompleted >= req.interval_days;
                         const isDueByKm = req.interval_km && kmSinceCompleted !== null && kmSinceCompleted >= req.interval_km;
                         const isDue = isDueByDays || isDueByKm;
+                        
+                        const daysOverdue = isDueByDays && daysSinceCompleted !== null ? daysSinceCompleted - (req.interval_days || 0) : 0;
+                        const kmOverdue = isDueByKm && kmSinceCompleted !== null ? kmSinceCompleted - (req.interval_km || 0) : 0;
+                        
+                        const daysRemaining = req.interval_days && daysSinceCompleted !== null ? req.interval_days - daysSinceCompleted : null;
+                        const kmRemaining = req.interval_km && kmSinceCompleted !== null ? req.interval_km - kmSinceCompleted : null;
 
                         return (
                           <div
                             key={req.id}
                             className={`p-4 rounded-lg border ${
-                              isDue ? 'border-warning bg-warning/5' : 'bg-background/50'
+                              isDue ? 'border-destructive bg-destructive/5' : 'bg-background/50'
                             }`}
                           >
                             <div className="flex items-start justify-between">
@@ -916,25 +941,64 @@ export default function AssetDetail() {
                                 <div className="flex items-center gap-2">
                                   <Wrench className="w-4 h-4 text-muted-foreground" />
                                   <p className="font-medium">{req.maintenance_type}</p>
-                                  {isDue && <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">Due</Badge>}
+                                  {isDue && <Badge variant="destructive">Overdue</Badge>}
                                 </div>
-                                <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                                  {req.interval_days && (
-                                    <p>• Every {req.interval_days} days
-                                      {daysSinceCompleted !== null && ` (${daysSinceCompleted} days since last)`}
-                                    </p>
-                                  )}
-                                  {req.interval_km && (
-                                    <p>• Every {req.interval_km.toLocaleString()} km
-                                      {kmSinceCompleted !== null && ` (${kmSinceCompleted.toLocaleString()} km since last)`}
-                                    </p>
-                                  )}
-                                  {req.last_completed_at && (
-                                    <p className="text-xs mt-1">
-                                      Last completed: {format(new Date(req.last_completed_at), "PPP")}
-                                    </p>
-                                  )}
+                                
+                                {/* Interval Info */}
+                                <div className="mt-2 text-sm text-muted-foreground">
+                                  <p>
+                                    Every {req.interval_days ? `${req.interval_days} days` : ''}
+                                    {req.interval_days && req.interval_km ? ' or ' : ''}
+                                    {req.interval_km ? `${req.interval_km.toLocaleString()} km` : ''}
+                                  </p>
                                 </div>
+                                
+                                {/* Last Completed */}
+                                {lastCompletedAt && (
+                                  <div className="mt-3 p-2 bg-success/10 rounded text-sm">
+                                    <p className="flex items-center gap-1 text-success">
+                                      <CheckCircle2 className="w-4 h-4" />
+                                      Last completed: {format(new Date(lastCompletedAt), "PPP")}
+                                      {lastCompletedOdometer && ` at ${lastCompletedOdometer.toLocaleString()} km`}
+                                    </p>
+                                  </div>
+                                )}
+                                
+                                {/* Next Due */}
+                                {(nextDueDate || nextDueOdometer) && (
+                                  <div className={`mt-2 p-2 rounded text-sm ${isDue ? 'bg-destructive/10' : 'bg-muted'}`}>
+                                    <p className={`flex items-center gap-1 ${isDue ? 'text-destructive font-medium' : ''}`}>
+                                      <Clock className="w-4 h-4" />
+                                      {isDue ? (
+                                        <>
+                                          Overdue: {daysOverdue > 0 && `${daysOverdue} days`}
+                                          {daysOverdue > 0 && kmOverdue > 0 && ' / '}
+                                          {kmOverdue > 0 && `${kmOverdue.toLocaleString()} km`}
+                                        </>
+                                      ) : (
+                                        <>
+                                          Next due: {nextDueDate && format(nextDueDate, "PPP")}
+                                          {nextDueDate && nextDueOdometer && ' or '}
+                                          {nextDueOdometer && `at ${nextDueOdometer.toLocaleString()} km`}
+                                        </>
+                                      )}
+                                    </p>
+                                    {!isDue && (daysRemaining !== null || kmRemaining !== null) && (
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        {daysRemaining !== null && daysRemaining > 0 && `${daysRemaining} days remaining`}
+                                        {daysRemaining !== null && daysRemaining > 0 && kmRemaining !== null && kmRemaining > 0 && ' / '}
+                                        {kmRemaining !== null && kmRemaining > 0 && `${kmRemaining.toLocaleString()} km to go`}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                                
+                                {/* No service history */}
+                                {!lastCompletedAt && (
+                                  <div className="mt-3 p-2 bg-muted rounded text-sm text-muted-foreground">
+                                    <p>No service history found - add an expense with this maintenance type to track</p>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
