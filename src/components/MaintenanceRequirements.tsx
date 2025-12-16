@@ -168,31 +168,29 @@ export function MaintenanceRequirements({
                         )}
                       </div>
 
-                      {category === "Vehicles" && (
-                        <div>
-                          <Label htmlFor={`km-${index}`}>Interval (km)</Label>
-                          {readOnly ? (
-                            <p className="mt-1 font-medium">
-                              {req.interval_km ? `${req.interval_km.toLocaleString()} km` : "N/A"}
-                            </p>
-                          ) : (
-                            <Input
-                              id={`km-${index}`}
-                              type="number"
-                              placeholder="e.g., 10000"
-                              value={req.interval_km || ""}
-                              onChange={(e) =>
-                                updateRequirement(
-                                  index,
-                                  "interval_km",
-                                  e.target.value ? parseInt(e.target.value) : null
-                                )
-                              }
-                              className="mt-1"
-                            />
-                          )}
-                        </div>
-                      )}
+                      <div>
+                        <Label htmlFor={`km-${index}`}>Interval (km)</Label>
+                        {readOnly ? (
+                          <p className="mt-1 font-medium">
+                            {req.interval_km ? `${req.interval_km.toLocaleString()} km` : "N/A"}
+                          </p>
+                        ) : (
+                          <Input
+                            id={`km-${index}`}
+                            type="number"
+                            placeholder="e.g., 10000"
+                            value={req.interval_km || ""}
+                            onChange={(e) =>
+                              updateRequirement(
+                                index,
+                                "interval_km",
+                                e.target.value ? parseInt(e.target.value) : null
+                              )
+                            }
+                            className="mt-1"
+                          />
+                        )}
+                      </div>
                     </div>
                   </div>
 

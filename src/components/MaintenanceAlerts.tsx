@@ -2,16 +2,40 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Calendar, Gauge } from "lucide-react";
-import { differenceInDays } from "date-fns";
+import { AlertTriangle, Calendar, Gauge, Wrench } from "lucide-react";
+import { differenceInDays, format } from "date-fns";
 
 type MaintenanceAlert = {
   asset_id: string;
   asset_name: string;
-  alert_type: 'overdue' | 'due_soon' | 'km_threshold';
+  maintenance_type: string;
+  alert_type: 'overdue' | 'due_soon';
   message: string;
   days_overdue?: number;
   km_over?: number;
+};
+
+type Asset = {
+  id: string;
+  asset_id: string;
+  name: string;
+  odometer_reading: number | null;
+};
+
+type MaintenanceRequirement = {
+  id: string;
+  asset_id: string;
+  maintenance_type: string;
+  interval_days: number | null;
+  interval_km: number | null;
+};
+
+type Expense = {
+  id: string;
+  asset_id: string;
+  category: string;
+  date: string;
+  odometer_at_service: number | null;
 };
 
 export function MaintenanceAlerts() {
@@ -24,86 +48,109 @@ export function MaintenanceAlerts() {
 
   const loadAlerts = async () => {
     try {
-      const { data: assets, error } = await supabase
+      // Fetch all assets
+      const { data: assets, error: assetsError } = await supabase
         .from("assets")
-        .select("*")
-        .not("maintenance_interval_days", "is", null)
-        .or("maintenance_interval_km.not.is.null");
+        .select("id, asset_id, name, odometer_reading");
 
-      if (error) throw error;
+      if (assetsError) throw assetsError;
+
+      // Fetch all maintenance requirements
+      const { data: requirements, error: reqError } = await supabase
+        .from("maintenance_requirements")
+        .select("*");
+
+      if (reqError) throw reqError;
+
+      // Fetch all expenses for auto-detection
+      const { data: expenses, error: expError } = await supabase
+        .from("expenses")
+        .select("id, asset_id, category, date, odometer_at_service")
+        .order("date", { ascending: false });
+
+      if (expError) throw expError;
 
       const newAlerts: MaintenanceAlert[] = [];
       const today = new Date();
 
-      assets?.forEach((asset) => {
+      // Process each requirement
+      requirements?.forEach((req) => {
+        const asset = assets?.find((a) => a.id === req.asset_id);
+        if (!asset) return;
+
+        // Find matching expenses for this requirement
+        const matchingExpenses = expenses?.filter(
+          (e) => 
+            e.asset_id === req.asset_id && 
+            e.category.toLowerCase() === req.maintenance_type.toLowerCase()
+        ) || [];
+        
+        const lastExpense = matchingExpenses.length > 0 ? matchingExpenses[0] : null;
+
         let daysUntilDue: number | null = null;
         let kmUntilDue: number | null = null;
-        let daysPart = '';
-        let kmPart = '';
 
         // Check time-based maintenance
-        if (asset.maintenance_interval_days && asset.last_maintenance_date) {
-          const lastMaintenance = new Date(asset.last_maintenance_date);
-          const daysSinceMaintenance = differenceInDays(today, lastMaintenance);
-          daysUntilDue = asset.maintenance_interval_days - daysSinceMaintenance;
-
-          if (daysUntilDue < 0) {
-            daysPart = `${Math.abs(daysUntilDue)} days overdue`;
-          } else if (daysUntilDue <= 14) {
-            const weeks = Math.floor(daysUntilDue / 7);
-            const days = daysUntilDue % 7;
-            if (weeks > 0) {
-              daysPart = `${weeks} week${weeks > 1 ? 's' : ''}${days > 0 ? ` ${days} day${days > 1 ? 's' : ''}` : ''}`;
-            } else {
-              daysPart = `${daysUntilDue} day${daysUntilDue !== 1 ? 's' : ''}`;
-            }
-          }
+        if (req.interval_days && lastExpense?.date) {
+          const lastDate = new Date(lastExpense.date);
+          const daysSince = differenceInDays(today, lastDate);
+          daysUntilDue = req.interval_days - daysSince;
         }
 
-        // Check odometer-based maintenance for vehicles
-        if (asset.maintenance_interval_km && asset.odometer_reading && asset.last_maintenance_odometer) {
-          const kmSinceMaintenance = asset.odometer_reading - asset.last_maintenance_odometer;
-          kmUntilDue = asset.maintenance_interval_km - kmSinceMaintenance;
-
-          if (kmUntilDue < 0) {
-            kmPart = `${Math.abs(kmUntilDue).toLocaleString()} km overdue`;
-          } else if (kmUntilDue <= 1000) {
-            kmPart = `${kmUntilDue.toLocaleString()} km`;
-          }
+        // Check km-based maintenance
+        if (req.interval_km && lastExpense?.odometer_at_service && asset.odometer_reading) {
+          const kmSince = asset.odometer_reading - lastExpense.odometer_at_service;
+          kmUntilDue = req.interval_km - kmSince;
         }
 
-        // Determine if we should show an alert (either condition met)
+        // Determine if alert needed
         const showTimeAlert = daysUntilDue !== null && (daysUntilDue < 0 || daysUntilDue <= 14);
         const showKmAlert = kmUntilDue !== null && (kmUntilDue < 0 || kmUntilDue <= 1000);
 
         if (showTimeAlert || showKmAlert) {
           const isOverdue = (daysUntilDue !== null && daysUntilDue < 0) || (kmUntilDue !== null && kmUntilDue < 0);
           
-          // Build combined message
-          let message = 'Service due';
-          if (daysPart && kmPart) {
-            message = isOverdue 
-              ? `Maintenance ${daysPart} or ${kmPart}`
-              : `Service due in ${daysPart} or ${kmPart}`;
-          } else if (daysPart) {
-            message = isOverdue 
-              ? `Maintenance ${daysPart}`
-              : `Service due in ${daysPart}`;
-          } else if (kmPart) {
-            message = isOverdue 
-              ? `Maintenance ${kmPart}`
-              : `Service due in ${kmPart}`;
+          // Build message
+          let message = `${req.maintenance_type}`;
+          const parts: string[] = [];
+          
+          if (daysUntilDue !== null) {
+            if (daysUntilDue < 0) {
+              parts.push(`${Math.abs(daysUntilDue)} days overdue`);
+            } else {
+              parts.push(`${daysUntilDue} days remaining`);
+            }
+          }
+          
+          if (kmUntilDue !== null) {
+            if (kmUntilDue < 0) {
+              parts.push(`${Math.abs(kmUntilDue).toLocaleString()} km overdue`);
+            } else {
+              parts.push(`${kmUntilDue.toLocaleString()} km remaining`);
+            }
+          }
+          
+          if (parts.length > 0) {
+            message += ` - ${parts.join(' / ')}`;
           }
 
           newAlerts.push({
             asset_id: asset.asset_id,
             asset_name: asset.name,
+            maintenance_type: req.maintenance_type,
             alert_type: isOverdue ? 'overdue' : 'due_soon',
             message,
             days_overdue: daysUntilDue !== null && daysUntilDue < 0 ? Math.abs(daysUntilDue) : undefined,
             km_over: kmUntilDue !== null && kmUntilDue < 0 ? Math.abs(kmUntilDue) : undefined,
           });
         }
+      });
+
+      // Sort: overdue first, then by severity
+      newAlerts.sort((a, b) => {
+        if (a.alert_type === 'overdue' && b.alert_type !== 'overdue') return -1;
+        if (a.alert_type !== 'overdue' && b.alert_type === 'overdue') return 1;
+        return 0;
       });
 
       setAlerts(newAlerts);
@@ -158,15 +205,15 @@ export function MaintenanceAlerts() {
         <div className="space-y-3">
           {alerts.map((alert, index) => (
             <div
-              key={`${alert.asset_id}-${index}`}
-              className="flex items-start justify-between p-3 rounded-lg bg-muted/50"
+              key={`${alert.asset_id}-${alert.maintenance_type}-${index}`}
+              className={`flex items-start justify-between p-3 rounded-lg ${
+                alert.alert_type === 'overdue' ? 'bg-destructive/10' : 'bg-muted/50'
+              }`}
             >
               <div className="flex items-start gap-3">
-                {alert.alert_type === 'km_threshold' ? (
-                  <Gauge className="w-5 h-5 text-warning mt-0.5" />
-                ) : (
-                  <Calendar className="w-5 h-5 text-warning mt-0.5" />
-                )}
+                <Wrench className={`w-5 h-5 mt-0.5 ${
+                  alert.alert_type === 'overdue' ? 'text-destructive' : 'text-warning'
+                }`} />
                 <div>
                   <p className="font-semibold text-sm">{alert.asset_name}</p>
                   <p className="text-xs text-muted-foreground">{alert.asset_id}</p>
