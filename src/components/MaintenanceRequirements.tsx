@@ -34,12 +34,7 @@ export function MaintenanceRequirements({
   onChange,
   readOnly = false,
 }: MaintenanceRequirementsProps) {
-  const [requirements, setRequirements] = useState<MaintenanceRequirement[]>(value);
   const [maintenanceTypes, setMaintenanceTypes] = useState<string[]>([]);
-
-  useEffect(() => {
-    setRequirements(value);
-  }, [value]);
 
   useEffect(() => {
     const loadMaintenanceTypes = async () => {
@@ -84,31 +79,27 @@ export function MaintenanceRequirements({
     loadMaintenanceTypes();
   }, [category]);
 
+  // Controlled component - use value prop directly, no local state for requirements
   const addRequirement = () => {
     const newReq: MaintenanceRequirement = {
       maintenance_type: "",
       interval_days: null,
       interval_km: null,
     };
-    const updated = [...requirements, newReq];
-    setRequirements(updated);
-    onChange(updated);
+    onChange([...value, newReq]);
   };
 
   const removeRequirement = (index: number) => {
-    const updated = requirements.filter((_, i) => i !== index);
-    setRequirements(updated);
+    const updated = value.filter((_, i) => i !== index);
     onChange(updated);
   };
 
-  const updateRequirement = (index: number, field: keyof MaintenanceRequirement, value: any) => {
-    const updated = [...requirements];
-    updated[index] = { ...updated[index], [field]: value };
-    setRequirements(updated);
+  const updateRequirement = (index: number, field: keyof MaintenanceRequirement, fieldValue: any) => {
+    const updated = value.map((req, i) => 
+      i === index ? { ...req, [field]: fieldValue } : req
+    );
     onChange(updated);
   };
-
-  const getMaintenanceTypes = () => maintenanceTypes;
 
   return (
     <Card>
@@ -132,7 +123,7 @@ export function MaintenanceRequirements({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {requirements.length === 0 ? (
+        {value.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Wrench className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p>No maintenance requirements defined</p>
@@ -144,9 +135,9 @@ export function MaintenanceRequirements({
           </div>
         ) : (
           <div className="space-y-4">
-            {requirements.map((req, index) => (
+            {value.map((req, index) => (
               <div
-                key={index}
+                key={req.id || `new-${index}`}
                 className="p-4 border border-border rounded-lg space-y-3 bg-card"
               >
                 <div className="flex items-start justify-between gap-2">
@@ -158,15 +149,15 @@ export function MaintenanceRequirements({
                       ) : (
                         <Select
                           value={req.maintenance_type}
-                          onValueChange={(value) =>
-                            updateRequirement(index, "maintenance_type", value)
+                          onValueChange={(val) =>
+                            updateRequirement(index, "maintenance_type", val)
                           }
                         >
                           <SelectTrigger id={`type-${index}`} className="mt-1">
                             <SelectValue placeholder="Select type" />
                           </SelectTrigger>
                           <SelectContent>
-                            {getMaintenanceTypes().map((type) => (
+                            {maintenanceTypes.map((type) => (
                               <SelectItem key={type} value={type}>
                                 {type}
                               </SelectItem>
