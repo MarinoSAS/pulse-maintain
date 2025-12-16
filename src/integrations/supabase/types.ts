@@ -619,6 +619,7 @@ export type Database = {
           phone_number: string | null
           role: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           active_tasks?: number | null
@@ -633,6 +634,7 @@ export type Database = {
           phone_number?: string | null
           role: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           active_tasks?: number | null
@@ -647,12 +649,13 @@ export type Database = {
           phone_number?: string | null
           role?: string
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "team_members_id_fkey"
-            columns: ["id"]
-            isOneToOne: true
+            foreignKeyName: "team_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
