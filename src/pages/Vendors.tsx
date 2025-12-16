@@ -155,7 +155,7 @@ export default function Vendors() {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Paid Out</p>
-                  <p className="text-3xl font-bold mt-2">${totalPaidOut.toLocaleString()}</p>
+                  <p className="text-3xl font-bold mt-2">€{totalPaidOut.toLocaleString()}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-primary/10">
                   <DollarSign className="w-6 h-6 text-primary" />
@@ -170,7 +170,7 @@ export default function Vendors() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Top Vendor</p>
                   <p className="text-lg font-bold mt-2 truncate">{topVendor?.name || "N/A"}</p>
-                  <p className="text-sm text-muted-foreground">${topVendor?.totalPaid.toFixed(2) || "0.00"}</p>
+                  <p className="text-sm text-muted-foreground">€{topVendor?.totalPaid.toFixed(2) || "0.00"}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-warning/10">
                   <TrendingUp className="w-6 h-6 text-warning" />
@@ -247,7 +247,7 @@ export default function Vendors() {
                       className="text-left md:text-right font-bold text-accent cursor-pointer block md:table-cell"
                     >
                       <div className="md:hidden text-xs text-muted-foreground mb-1">Total Paid</div>
-                      ${vendor.totalPaid.toFixed(2)}
+                      €{vendor.totalPaid.toFixed(2)}
                     </TableCell>
                     <TableCell onClick={() => navigate(`/vendors/${vendor.id}`)} className="text-left md:text-center cursor-pointer block md:table-cell">
                       <div className="md:hidden text-xs text-muted-foreground mb-1">Expenses</div>
