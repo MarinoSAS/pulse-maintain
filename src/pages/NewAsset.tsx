@@ -81,9 +81,47 @@ export default function NewAsset() {
 
   const selectedCategory = form.watch("category");
 
+  // Generate next sequential Asset ID
+  const generateNextAssetId = async () => {
+    try {
+      const { data: assets, error } = await supabase
+        .from("assets")
+        .select("asset_id");
+
+      if (error) throw error;
+
+      if (!assets || assets.length === 0) {
+        return "0001";
+      }
+
+      // Extract numbers from existing IDs
+      const numbers = assets
+        .map(a => {
+          const match = a.asset_id.match(/(\d+)/);
+          return match ? parseInt(match[1], 10) : 0;
+        })
+        .filter(n => !isNaN(n));
+
+      const maxNumber = Math.max(...numbers, 0);
+      const nextNumber = maxNumber + 1;
+
+      return nextNumber.toString().padStart(4, "0");
+    } catch (error) {
+      console.error("Failed to generate asset ID:", error);
+      return "0001";
+    }
+  };
+
   useEffect(() => {
     loadCategories();
     loadTeamMembers();
+    
+    // Auto-generate Asset ID on mount
+    const loadNextAssetId = async () => {
+      const nextId = await generateNextAssetId();
+      form.setValue("assetId", nextId);
+    };
+    loadNextAssetId();
   }, []);
 
   // Check for existing requirements when category changes
@@ -300,9 +338,12 @@ export default function NewAsset() {
                 name="assetId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Asset ID</FormLabel>
+                    <FormLabel className="flex items-center gap-2">
+                      Asset ID
+                      <span className="text-xs text-muted-foreground font-normal">(auto-generated)</span>
+                    </FormLabel>
                     <FormControl>
-                      <Input placeholder="FL-001" {...field} />
+                      <Input placeholder="0001" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
