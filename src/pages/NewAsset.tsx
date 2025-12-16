@@ -22,10 +22,20 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
-import { ArrowLeft } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { ArrowLeft, Copy } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { MaintenanceRequirements, MaintenanceRequirement } from "@/components/MaintenanceRequirements";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const assetFormSchema = z.object({
   assetId: z.string().min(1, "Asset ID is required").max(50, "Asset ID too long"),
@@ -51,6 +61,12 @@ export default function NewAsset() {
   const [requirements, setRequirements] = useState<MaintenanceRequirement[]>([]);
   const { isAdmin } = useUserRole();
   
+  // Template detection state
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [templateAsset, setTemplateAsset] = useState<{ name: string; asset_id: string } | null>(null);
+  const [templateRequirements, setTemplateRequirements] = useState<MaintenanceRequirement[]>([]);
+  const checkedCategories = useRef<Set<string>>(new Set());
+  
   const form = useForm<z.infer<typeof assetFormSchema>>({
     resolver: zodResolver(assetFormSchema),
     defaultValues: {
@@ -69,6 +85,54 @@ export default function NewAsset() {
     loadCategories();
     loadTeamMembers();
   }, []);
+
+  // Check for existing requirements when category changes
+  useEffect(() => {
+    if (!selectedCategory || checkedCategories.current.has(selectedCategory)) return;
+    
+    const checkForTemplates = async () => {
+      try {
+        // Find assets of this category that have maintenance requirements
+        const { data: assetsWithReqs, error } = await supabase
+          .from("assets")
+          .select(`
+            id, name, asset_id,
+            maintenance_requirements (
+              maintenance_type,
+              interval_days,
+              interval_km
+            )
+          `)
+          .eq("category", selectedCategory)
+          .eq("approval_status", "approved");
+
+        if (error) throw error;
+
+        // Find asset with the most requirements
+        const assetWithMostReqs = assetsWithReqs
+          ?.filter(a => a.maintenance_requirements && a.maintenance_requirements.length > 0)
+          .sort((a, b) => b.maintenance_requirements.length - a.maintenance_requirements.length)[0];
+
+        if (assetWithMostReqs && assetWithMostReqs.maintenance_requirements.length > 0) {
+          setTemplateAsset({ name: assetWithMostReqs.name, asset_id: assetWithMostReqs.asset_id });
+          setTemplateRequirements(
+            assetWithMostReqs.maintenance_requirements.map(r => ({
+              maintenance_type: r.maintenance_type,
+              interval_days: r.interval_days,
+              interval_km: r.interval_km,
+            }))
+          );
+          setShowTemplateDialog(true);
+        }
+
+        checkedCategories.current.add(selectedCategory);
+      } catch (error) {
+        console.error("Failed to check for templates:", error);
+      }
+    };
+
+    checkForTemplates();
+  }, [selectedCategory]);
 
   const loadCategories = async () => {
     try {
@@ -167,8 +231,53 @@ export default function NewAsset() {
     }
   };
 
+  const applyTemplate = () => {
+    setRequirements(templateRequirements);
+    setShowTemplateDialog(false);
+    toast.success(`Applied ${templateRequirements.length} maintenance requirements from ${templateAsset?.name}`);
+  };
+
   return (
     <Layout>
+      {/* Template Detection Dialog */}
+      <AlertDialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Copy className="w-5 h-5 text-primary" />
+              Apply Maintenance Template?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  <strong>{templateAsset?.name}</strong> ({templateAsset?.asset_id}) has maintenance requirements configured for this category.
+                </p>
+                <div className="bg-muted rounded-lg p-3 space-y-1">
+                  <p className="text-sm font-medium text-foreground mb-2">
+                    {templateRequirements.length} requirements:
+                  </p>
+                  {templateRequirements.map((req, i) => (
+                    <div key={i} className="text-sm text-muted-foreground flex justify-between">
+                      <span>{req.maintenance_type}</span>
+                      <span className="text-xs">
+                        {req.interval_days && `${req.interval_days} days`}
+                        {req.interval_days && req.interval_km && " / "}
+                        {req.interval_km && `${req.interval_km.toLocaleString()} km`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-sm">Would you like to apply these requirements to this new asset?</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Skip</AlertDialogCancel>
+            <AlertDialogAction onClick={applyTemplate}>Apply Requirements</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="min-h-screen pb-24">
         <div className="p-4 md:p-8 max-w-3xl mx-auto">
           <div className="mb-6 md:mb-8">
