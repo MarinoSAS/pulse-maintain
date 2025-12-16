@@ -29,12 +29,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 
-const COMMON_MAINTENANCE_TYPES = {
-  Vehicles: ["Service", "Oil Change", "Inspection", "Tachograph Calibration", "MOT", "Brake Service", "Tire Rotation"],
-  Equipment: ["Service", "Oil Change", "Inspection", "Parts Replacement"],
-  Tools: ["Inspection", "Calibration", "Service"],
-  Facilities: ["Inspection", "Maintenance"],
-};
 
 const taskSchema = z.object({
   company: z.string().optional(),
@@ -149,13 +143,43 @@ export function TaskForm({ onSuccess, onCancel, isRegularUser }: TaskFormProps) 
     }
   };
 
-  const handleAssetChange = (assetId: string) => {
+  const handleAssetChange = async (assetId: string) => {
     form.setValue("assetId", assetId);
     const selectedAsset = assets.find(a => a.id === assetId);
     
     if (selectedAsset?.category) {
-      const types = COMMON_MAINTENANCE_TYPES[selectedAsset.category as keyof typeof COMMON_MAINTENANCE_TYPES] || [];
-      setMaintenanceTypes(types);
+      // Load maintenance types dynamically from database based on asset category
+      try {
+        const { data: categoryData } = await supabase
+          .from("asset_categories")
+          .select("id")
+          .eq("name", selectedAsset.category)
+          .maybeSingle();
+
+        if (categoryData) {
+          const { data: typeLinks } = await supabase
+            .from("category_maintenance_types")
+            .select("maintenance_type_id")
+            .eq("asset_category_id", categoryData.id);
+
+          if (typeLinks && typeLinks.length > 0) {
+            const typeIds = typeLinks.map(t => t.maintenance_type_id);
+            const { data: types } = await supabase
+              .from("maintenance_types")
+              .select("name")
+              .in("id", typeIds);
+
+            setMaintenanceTypes(types?.map(t => t.name) || []);
+          } else {
+            setMaintenanceTypes([]);
+          }
+        } else {
+          setMaintenanceTypes([]);
+        }
+      } catch (error) {
+        console.error("Failed to load maintenance types:", error);
+        setMaintenanceTypes([]);
+      }
     } else {
       setMaintenanceTypes([]);
     }
