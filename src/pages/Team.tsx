@@ -56,7 +56,7 @@ const invitationSchema = z.object({
 
 const teamMemberSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  role: z.enum(["Driver", "Technician", "Contractor", "Staff", "Other"]),
+  role: z.string().min(1, "Role is required"),
   phone_number: z.string().optional(),
   description: z.string().optional(),
 });
@@ -95,6 +95,7 @@ export default function Team() {
   const [copied, setCopied] = useState(false);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("members");
+  const [teamRoles, setTeamRoles] = useState<{ id: string; name: string; description: string | null }[]>([]);
 
   const form = useForm<z.infer<typeof invitationSchema>>({
     resolver: zodResolver(invitationSchema),
@@ -109,7 +110,7 @@ export default function Team() {
     resolver: zodResolver(teamMemberSchema),
     defaultValues: {
       name: "",
-      role: "Driver",
+      role: "",
       phone_number: "",
       description: "",
     },
@@ -118,7 +119,22 @@ export default function Team() {
   useEffect(() => {
     loadInvitations();
     loadTeamMembers();
+    loadTeamRoles();
   }, []);
+
+  const loadTeamRoles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("team_roles")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      setTeamRoles(data || []);
+    } catch (error: any) {
+      console.error("Failed to load team roles:", error);
+    }
+  };
 
   const loadTeamMembers = async () => {
     try {
@@ -362,11 +378,11 @@ export default function Team() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="Driver">Driver</SelectItem>
-                                <SelectItem value="Technician">Technician</SelectItem>
-                                <SelectItem value="Contractor">Contractor</SelectItem>
-                                <SelectItem value="Staff">Staff</SelectItem>
-                                <SelectItem value="Other">Other</SelectItem>
+                                {teamRoles.map((role) => (
+                                  <SelectItem key={role.id} value={role.name}>
+                                    {role.name}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                             <FormMessage />
