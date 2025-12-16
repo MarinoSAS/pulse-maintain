@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Mail, Phone, Shield, Copy, Check, Users, CheckCircle2, Clock, Trash2, User } from "lucide-react";
+import { Plus, Mail, Phone, Shield, Copy, Check, Users, CheckCircle2, Clock, Trash2, User, UserPlus, Truck } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,6 +54,13 @@ const invitationSchema = z.object({
   description: z.string().optional(),
 });
 
+const teamMemberSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  role: z.enum(["Driver", "Technician", "Contractor", "Staff", "Other"]),
+  phone_number: z.string().optional(),
+  description: z.string().optional(),
+});
+
 type Invitation = {
   id: string;
   email: string;
@@ -86,6 +93,7 @@ export default function Team() {
   const [inviteLink, setInviteLink] = useState<string>("");
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("members");
 
   const form = useForm<z.infer<typeof invitationSchema>>({
@@ -93,6 +101,16 @@ export default function Team() {
     defaultValues: {
       name: "",
       role: "manager",
+      description: "",
+    },
+  });
+
+  const memberForm = useForm<z.infer<typeof teamMemberSchema>>({
+    resolver: zodResolver(teamMemberSchema),
+    defaultValues: {
+      name: "",
+      role: "Driver",
+      phone_number: "",
       description: "",
     },
   });
@@ -195,6 +213,37 @@ export default function Team() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const generateInitials = (name: string): string => {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) {
+      return parts[0].substring(0, 2).toUpperCase();
+    }
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
+
+  const onAddMember = async (values: z.infer<typeof teamMemberSchema>) => {
+    try {
+      const initials = generateInitials(values.name);
+      
+      const { error } = await supabase.from("team_members").insert({
+        name: values.name,
+        initials,
+        role: values.role,
+        phone_number: values.phone_number || null,
+        description: values.description || null,
+      });
+
+      if (error) throw error;
+
+      toast.success(`${values.name} added to team`);
+      memberForm.reset();
+      setAddMemberOpen(false);
+      loadTeamMembers();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to add team member");
+    }
+  };
+
   const deleteTeamMember = async (id: string, name: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -219,8 +268,8 @@ export default function Team() {
     }
   };
 
-  const getRoleBadge = (actualRole: 'admin' | 'manager' | null) => {
-    if (actualRole === 'admin') {
+  const getRoleBadge = (member: TeamMember) => {
+    if (member.actual_role === 'admin') {
       return (
         <Badge className="bg-destructive/10 text-destructive border-destructive/30">
           <Shield className="w-3 h-3 mr-1" />
@@ -228,7 +277,7 @@ export default function Team() {
         </Badge>
       );
     }
-    if (actualRole === 'manager') {
+    if (member.actual_role === 'manager') {
       return (
         <Badge className="bg-primary/10 text-primary border-primary/30">
           <User className="w-3 h-3 mr-1" />
@@ -236,9 +285,18 @@ export default function Team() {
         </Badge>
       );
     }
+    // For non-login members (drivers, staff, etc.)
+    if (member.role === 'Driver') {
+      return (
+        <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/30">
+          <Truck className="w-3 h-3 mr-1" />
+          Driver
+        </Badge>
+      );
+    }
     return (
       <Badge variant="outline" className="text-xs">
-        No Role
+        {member.role || 'Staff'}
       </Badge>
     );
   };
@@ -263,79 +321,171 @@ export default function Team() {
             <p className="text-muted-foreground mt-1 text-sm md:text-base">Manage your team members and invitations</p>
           </div>
           {isAdmin && (
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-gradient-accent shadow-md hover:shadow-lg w-full md:w-auto">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Invite Member
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Invite Team Member</DialogTitle>
-                  <DialogDescription>Send an invitation to join your team.</DialogDescription>
-                </DialogHeader>
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Full Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="John Smith" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Description (Optional)</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Senior Technician, 10 years experience" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="role"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Role</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+            <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+              <Dialog open={addMemberOpen} onOpenChange={setAddMemberOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="shadow-md hover:shadow-lg w-full md:w-auto">
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Add Team Member
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add Team Member</DialogTitle>
+                    <DialogDescription>Add a driver or staff member for task assignment (no login required).</DialogDescription>
+                  </DialogHeader>
+                  <Form {...memberForm}>
+                    <form onSubmit={memberForm.handleSubmit(onAddMember)} className="space-y-4">
+                      <FormField
+                        control={memberForm.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Full Name</FormLabel>
                             <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a role" />
-                              </SelectTrigger>
+                              <Input placeholder="John Smith" {...field} />
                             </FormControl>
-                            <SelectContent>
-                              <SelectItem value="manager">Manager</SelectItem>
-                              <SelectItem value="admin">Administrator</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="flex justify-end gap-3 pt-4">
-                      <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button type="submit" className="bg-gradient-accent">
-                        Send Invitation
-                      </Button>
-                    </div>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={memberForm.control}
+                        name="role"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Role</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a role" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="Driver">Driver</SelectItem>
+                                <SelectItem value="Technician">Technician</SelectItem>
+                                <SelectItem value="Contractor">Contractor</SelectItem>
+                                <SelectItem value="Staff">Staff</SelectItem>
+                                <SelectItem value="Other">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={memberForm.control}
+                        name="phone_number"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Phone Number (Optional)</FormLabel>
+                            <FormControl>
+                              <Input placeholder="+44 7700 900000" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={memberForm.control}
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Description (Optional)</FormLabel>
+                            <FormControl>
+                              <Input placeholder="HGV Driver, 5 years experience" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="flex justify-end gap-3 pt-4">
+                        <Button type="button" variant="outline" onClick={() => setAddMemberOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit" className="bg-gradient-accent">
+                          Add Member
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild>
+                  <Button className="bg-gradient-accent shadow-md hover:shadow-lg w-full md:w-auto">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Invite Member
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Invite Team Member</DialogTitle>
+                    <DialogDescription>Send an invitation to join your team (with login access).</DialogDescription>
+                  </DialogHeader>
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Full Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="John Smith" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Description (Optional)</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Senior Technician, 10 years experience" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="role"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Role</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a role" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="manager">Manager</SelectItem>
+                                <SelectItem value="admin">Administrator</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="flex justify-end gap-3 pt-4">
+                        <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit" className="bg-gradient-accent">
+                          Send Invitation
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+            </div>
           )}
         </div>
 
@@ -371,7 +521,7 @@ export default function Team() {
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-foreground truncate">{member.name}</h3>
                           <div className="flex items-center gap-2 mt-1">
-                            {getRoleBadge(member.actual_role)}
+                            {getRoleBadge(member)}
                           </div>
                         </div>
                         {isAdmin && (
