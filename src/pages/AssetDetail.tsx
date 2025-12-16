@@ -18,6 +18,7 @@ import {
   Wrench,
   Receipt,
   Trash2,
+  Pencil,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -30,6 +31,24 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -37,6 +56,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInDays } from "date-fns";
 import { useUserRole } from "@/hooks/useUserRole";
 import { MaintenanceRequirements, MaintenanceRequirement } from "@/components/MaintenanceRequirements";
+
+type TeamMember = {
+  id: string;
+  name: string;
+  role: string;
+};
+
+type AssetCategory = {
+  id: string;
+  name: string;
+};
 
 type Asset = {
   id: string;
@@ -96,12 +126,90 @@ export default function AssetDetail() {
   const [expenseFilter, setExpenseFilter] = useState("all");
   const [maintenanceFilter, setMaintenanceFilter] = useState("all");
   const { isAdmin, isManager } = useUserRole();
+  
+  // Edit dialog state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [categories, setCategories] = useState<AssetCategory[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [editForm, setEditForm] = useState({
+    asset_id: "",
+    name: "",
+    description: "",
+    category: "",
+    company: "" as 'Unifruit' | 'Limnia' | 'HRC' | 'Other',
+    status: "" as 'Active' | 'Maintenance' | 'Inactive',
+    assigned_to: "",
+    last_service: "",
+    odometer_reading: "",
+  });
 
   useEffect(() => {
     if (id) {
       loadAssetData();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (editOpen && asset) {
+      loadEditFormData();
+      setEditForm({
+        asset_id: asset.asset_id,
+        name: asset.name,
+        description: asset.description || "",
+        category: asset.category,
+        company: asset.company,
+        status: asset.status as 'Active' | 'Maintenance' | 'Inactive',
+        assigned_to: asset.assigned_to || "",
+        last_service: asset.last_service || "",
+        odometer_reading: asset.odometer_reading?.toString() || "",
+      });
+    }
+  }, [editOpen, asset]);
+
+  const loadEditFormData = async () => {
+    const [categoriesRes, teamRes] = await Promise.all([
+      supabase.from("asset_categories").select("id, name").order("name"),
+      supabase.from("team_members").select("id, name, role").order("name"),
+    ]);
+    if (categoriesRes.data) setCategories(categoriesRes.data);
+    if (teamRes.data) setTeamMembers(teamRes.data);
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editForm.asset_id || !editForm.name || !editForm.category) {
+      toast.error("Please fill in required fields (Asset ID, Name, Category)");
+      return;
+    }
+
+    try {
+      setEditLoading(true);
+      const { error } = await supabase
+        .from("assets")
+        .update({
+          asset_id: editForm.asset_id,
+          name: editForm.name,
+          description: editForm.description || null,
+          category: editForm.category,
+          company: editForm.company,
+          status: editForm.status,
+          assigned_to: editForm.assigned_to || null,
+          last_service: editForm.last_service || null,
+          odometer_reading: editForm.odometer_reading ? parseInt(editForm.odometer_reading) : null,
+        })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast.success("Asset updated successfully");
+      setEditOpen(false);
+      loadAssetData();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update asset");
+    } finally {
+      setEditLoading(false);
+    }
+  };
 
   const loadAssetData = async () => {
     try {
@@ -292,34 +400,193 @@ export default function AssetDetail() {
               ID: {asset.asset_id} • {asset.category}
             </p>
           </div>
-          {isAdmin && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" className="text-destructive border-destructive hover:bg-destructive/10">
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Asset
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Asset?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently delete {asset.name} and all associated expenses, maintenance schedules, and tasks. This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction 
-                    onClick={deleteAsset}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
+          <div className="flex flex-col md:flex-row gap-2">
+            {(isAdmin || isManager) && (
+              <Button variant="outline" onClick={() => setEditOpen(true)}>
+                <Pencil className="w-4 h-4 mr-2" />
+                Edit Asset
+              </Button>
+            )}
+            {isAdmin && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" className="text-destructive border-destructive hover:bg-destructive/10">
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Asset
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Asset?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete {asset.name} and all associated expenses, maintenance schedules, and tasks. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={deleteAsset}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
         </div>
+
+        {/* Edit Asset Dialog */}
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Asset</DialogTitle>
+              <DialogDescription>
+                Update the asset details below.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="asset_id">Asset ID *</Label>
+                  <Input
+                    id="asset_id"
+                    value={editForm.asset_id}
+                    onChange={(e) => setEditForm({ ...editForm, asset_id: e.target.value })}
+                    placeholder="e.g., VEH-001"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name *</Label>
+                  <Input
+                    id="name"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    placeholder="Asset name"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  placeholder="Asset description"
+                  rows={2}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Category *</Label>
+                  <Select
+                    value={editForm.category}
+                    onValueChange={(value) => setEditForm({ ...editForm, category: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.name}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Company</Label>
+                  <Select
+                    value={editForm.company}
+                    onValueChange={(value) => setEditForm({ ...editForm, company: value as any })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select company" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Unifruit">Unifruit</SelectItem>
+                      <SelectItem value="Limnia">Limnia</SelectItem>
+                      <SelectItem value="HRC">HRC</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select
+                    value={editForm.status}
+                    onValueChange={(value) => setEditForm({ ...editForm, status: value as any })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Active">Active</SelectItem>
+                      <SelectItem value="Maintenance">Maintenance</SelectItem>
+                      <SelectItem value="Inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Assigned To</Label>
+                  <Select
+                    value={editForm.assigned_to}
+                    onValueChange={(value) => setEditForm({ ...editForm, assigned_to: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Unassigned" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Unassigned</SelectItem>
+                      {teamMembers.map((member) => (
+                        <SelectItem key={member.id} value={member.id}>
+                          {member.name} ({member.role})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="last_service">Last Service Date</Label>
+                  <Input
+                    id="last_service"
+                    type="date"
+                    value={editForm.last_service}
+                    onChange={(e) => setEditForm({ ...editForm, last_service: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="odometer">Odometer (km)</Label>
+                  <Input
+                    id="odometer"
+                    type="number"
+                    value={editForm.odometer_reading}
+                    onChange={(e) => setEditForm({ ...editForm, odometer_reading: e.target.value })}
+                    placeholder="e.g., 50000"
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditSubmit} disabled={editLoading}>
+                {editLoading ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
