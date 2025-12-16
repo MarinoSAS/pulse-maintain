@@ -19,6 +19,7 @@ import {
   Receipt,
   Trash2,
   Pencil,
+  Plus,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -132,6 +133,11 @@ export default function AssetDetail() {
   const [editLoading, setEditLoading] = useState(false);
   const [categories, setCategories] = useState<AssetCategory[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  
+  // Requirements editing state
+  const [editingRequirements, setEditingRequirements] = useState(false);
+  const [editableRequirements, setEditableRequirements] = useState<MaintenanceRequirement[]>([]);
+  const [savingRequirements, setSavingRequirements] = useState(false);
   const [editForm, setEditForm] = useState({
     asset_id: "",
     name: "",
@@ -343,6 +349,85 @@ export default function AssetDetail() {
       navigate("/assets");
     } catch (error: any) {
       toast.error(error.message || "Failed to delete asset");
+    }
+  };
+
+  const startEditingRequirements = () => {
+    // Convert requirements to editable format
+    setEditableRequirements(
+      requirements.map((req) => ({
+        id: req.id,
+        maintenance_type: req.maintenance_type,
+        interval_days: req.interval_days,
+        interval_km: req.interval_km,
+      }))
+    );
+    setEditingRequirements(true);
+  };
+
+  const cancelEditingRequirements = () => {
+    setEditingRequirements(false);
+    setEditableRequirements([]);
+  };
+
+  const saveRequirements = async () => {
+    if (!id) return;
+
+    try {
+      setSavingRequirements(true);
+
+      // Get original requirement IDs
+      const originalIds = requirements.map((r) => r.id);
+      const newIds = editableRequirements.filter((r) => r.id).map((r) => r.id!);
+
+      // Delete removed requirements
+      const toDelete = originalIds.filter((origId) => !newIds.includes(origId));
+      if (toDelete.length > 0) {
+        const { error: deleteError } = await supabase
+          .from("maintenance_requirements")
+          .delete()
+          .in("id", toDelete);
+        if (deleteError) throw deleteError;
+      }
+
+      // Insert new requirements (those without an id)
+      const toInsert = editableRequirements.filter((r) => !r.id && r.maintenance_type);
+      if (toInsert.length > 0) {
+        const { error: insertError } = await supabase
+          .from("maintenance_requirements")
+          .insert(
+            toInsert.map((r) => ({
+              asset_id: id,
+              maintenance_type: r.maintenance_type,
+              interval_days: r.interval_days,
+              interval_km: r.interval_km,
+            }))
+          );
+        if (insertError) throw insertError;
+      }
+
+      // Update existing requirements
+      const toUpdate = editableRequirements.filter((r) => r.id && r.maintenance_type);
+      for (const req of toUpdate) {
+        const { error: updateError } = await supabase
+          .from("maintenance_requirements")
+          .update({
+            maintenance_type: req.maintenance_type,
+            interval_days: req.interval_days,
+            interval_km: req.interval_km,
+          })
+          .eq("id", req.id!);
+        if (updateError) throw updateError;
+      }
+
+      toast.success("Maintenance requirements saved");
+      setEditingRequirements(false);
+      setEditableRequirements([]);
+      loadAssetData();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save requirements");
+    } finally {
+      setSavingRequirements(false);
     }
   };
 
@@ -748,70 +833,118 @@ export default function AssetDetail() {
 
           {/* Requirements Tab */}
           <TabsContent value="requirements" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Maintenance Requirements</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {requirements.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Wrench className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No maintenance requirements defined</p>
+            {editingRequirements ? (
+              <div className="space-y-4">
+                <MaintenanceRequirements
+                  category={asset.category}
+                  value={editableRequirements}
+                  onChange={setEditableRequirements}
+                  readOnly={false}
+                />
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={cancelEditingRequirements}
+                    disabled={savingRequirements}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={saveRequirements}
+                    disabled={savingRequirements}
+                  >
+                    {savingRequirements ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Maintenance Requirements</CardTitle>
+                    {(isAdmin || isManager) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={startEditingRequirements}
+                      >
+                        <Pencil className="w-4 h-4 mr-2" />
+                        Edit Requirements
+                      </Button>
+                    )}
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    {requirements.map((req) => {
-                      const daysSinceCompleted = req.last_completed_at 
-                        ? differenceInDays(new Date(), new Date(req.last_completed_at))
-                        : null;
-                      const kmSinceCompleted = req.last_completed_odometer && asset?.odometer_reading
-                        ? asset.odometer_reading - req.last_completed_odometer
-                        : null;
-
-                      const isDueByDays = req.interval_days && daysSinceCompleted !== null && daysSinceCompleted >= req.interval_days;
-                      const isDueByKm = req.interval_km && kmSinceCompleted !== null && kmSinceCompleted >= req.interval_km;
-                      const isDue = isDueByDays || isDueByKm;
-
-                      return (
-                        <div
-                          key={req.id}
-                          className={`p-4 rounded-lg border ${
-                            isDue ? 'border-warning bg-warning/5' : 'bg-background/50'
-                          }`}
+                </CardHeader>
+                <CardContent>
+                  {requirements.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Wrench className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>No maintenance requirements defined</p>
+                      {(isAdmin || isManager) && (
+                        <Button
+                          variant="outline"
+                          className="mt-4"
+                          onClick={startEditingRequirements}
                         >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <Wrench className="w-4 h-4 text-muted-foreground" />
-                                <p className="font-medium">{req.maintenance_type}</p>
-                                {isDue && <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">Due</Badge>}
-                              </div>
-                              <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                                {req.interval_days && (
-                                  <p>• Every {req.interval_days} days
-                                    {daysSinceCompleted !== null && ` (${daysSinceCompleted} days since last)`}
-                                  </p>
-                                )}
-                                {req.interval_km && (
-                                  <p>• Every {req.interval_km.toLocaleString()} km
-                                    {kmSinceCompleted !== null && ` (${kmSinceCompleted.toLocaleString()} km since last)`}
-                                  </p>
-                                )}
-                                {req.last_completed_at && (
-                                  <p className="text-xs mt-1">
-                                    Last completed: {format(new Date(req.last_completed_at), "PPP")}
-                                  </p>
-                                )}
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Requirements
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {requirements.map((req) => {
+                        const daysSinceCompleted = req.last_completed_at 
+                          ? differenceInDays(new Date(), new Date(req.last_completed_at))
+                          : null;
+                        const kmSinceCompleted = req.last_completed_odometer && asset?.odometer_reading
+                          ? asset.odometer_reading - req.last_completed_odometer
+                          : null;
+
+                        const isDueByDays = req.interval_days && daysSinceCompleted !== null && daysSinceCompleted >= req.interval_days;
+                        const isDueByKm = req.interval_km && kmSinceCompleted !== null && kmSinceCompleted >= req.interval_km;
+                        const isDue = isDueByDays || isDueByKm;
+
+                        return (
+                          <div
+                            key={req.id}
+                            className={`p-4 rounded-lg border ${
+                              isDue ? 'border-warning bg-warning/5' : 'bg-background/50'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <Wrench className="w-4 h-4 text-muted-foreground" />
+                                  <p className="font-medium">{req.maintenance_type}</p>
+                                  {isDue && <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">Due</Badge>}
+                                </div>
+                                <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                                  {req.interval_days && (
+                                    <p>• Every {req.interval_days} days
+                                      {daysSinceCompleted !== null && ` (${daysSinceCompleted} days since last)`}
+                                    </p>
+                                  )}
+                                  {req.interval_km && (
+                                    <p>• Every {req.interval_km.toLocaleString()} km
+                                      {kmSinceCompleted !== null && ` (${kmSinceCompleted.toLocaleString()} km since last)`}
+                                    </p>
+                                  )}
+                                  {req.last_completed_at && (
+                                    <p className="text-xs mt-1">
+                                      Last completed: {format(new Date(req.last_completed_at), "PPP")}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* Expenses Tab */}
