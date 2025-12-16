@@ -7,6 +7,9 @@ import {
   Factory,
   Cog,
   Warehouse,
+  Car,
+  Forklift,
+  Snowflake,
   LucideIcon 
 } from "lucide-react";
 
@@ -20,6 +23,10 @@ export const iconMap: Record<string, LucideIcon> = {
   Factory,
   Cog,
   Warehouse,
+  Car,
+  car: Car, // Support lowercase
+  Forklift,
+  Snowflake,
 };
 
 // Get icon component by name, with fallback to Package

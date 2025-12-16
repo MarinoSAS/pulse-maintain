@@ -126,12 +126,20 @@ export default function Settings() {
   // Asset Categories Functions
   const loadAssetCategories = async () => {
     try {
-      const { data, error } = await supabase
-        .from("asset_categories")
-        .select("*");
+      // Load categories and assets count in parallel
+      const [categoriesResult, assetsResult] = await Promise.all([
+        supabase.from("asset_categories").select("*"),
+        supabase.from("assets").select("category")
+      ]);
 
-      if (error) throw error;
-      setAssetCategories(data || []);
+      if (categoriesResult.error) throw categoriesResult.error;
+
+      const categoriesWithCounts = (categoriesResult.data || []).map(cat => ({
+        ...cat,
+        asset_count: (assetsResult.data || []).filter(a => a.category === cat.name).length
+      }));
+
+      setAssetCategories(categoriesWithCounts);
     } catch (error: any) {
       toast.error(`Failed to load asset categories: ${error.message}`);
     }
@@ -331,12 +339,20 @@ export default function Settings() {
   // Vendor Types Functions
   const loadVendorTypes = async () => {
     try {
-      const { data, error } = await supabase
-        .from("vendor_types")
-        .select("*");
+      // Load vendor types and vendors count in parallel
+      const [typesResult, vendorsResult] = await Promise.all([
+        supabase.from("vendor_types").select("*"),
+        supabase.from("vendors").select("vendor_type_id")
+      ]);
 
-      if (error) throw error;
-      setVendorTypes(data || []);
+      if (typesResult.error) throw typesResult.error;
+
+      const typesWithCounts = (typesResult.data || []).map(type => ({
+        ...type,
+        vendor_count: (vendorsResult.data || []).filter(v => v.vendor_type_id === type.id).length
+      }));
+
+      setVendorTypes(typesWithCounts);
     } catch (error: any) {
       toast.error(`Failed to load vendor types: ${error.message}`);
     }
@@ -407,13 +423,20 @@ export default function Settings() {
   // Team Roles Functions
   const loadTeamRoles = async () => {
     try {
-      const { data, error } = await supabase
-        .from("team_roles")
-        .select("*")
-        .order("name");
+      // Load team roles and members count in parallel
+      const [rolesResult, membersResult] = await Promise.all([
+        supabase.from("team_roles").select("*").order("name"),
+        supabase.from("team_members").select("role")
+      ]);
 
-      if (error) throw error;
-      setTeamRoles(data || []);
+      if (rolesResult.error) throw rolesResult.error;
+
+      const rolesWithCounts = (rolesResult.data || []).map(role => ({
+        ...role,
+        member_count: (membersResult.data || []).filter(m => m.role === role.name).length
+      }));
+
+      setTeamRoles(rolesWithCounts);
     } catch (error: any) {
       toast.error(`Failed to load team roles: ${error.message}`);
     }
@@ -1085,6 +1108,7 @@ export default function Settings() {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Description</TableHead>
+                      <TableHead>Members Using</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1093,6 +1117,7 @@ export default function Settings() {
                       <TableRow key={role.id}>
                         <TableCell className="font-medium">{role.name}</TableCell>
                         <TableCell>{role.description || "-"}</TableCell>
+                        <TableCell>{role.member_count || 0}</TableCell>
                         <TableCell className="text-right space-x-2">
                           <Button
                             size="sm"
@@ -1132,6 +1157,10 @@ export default function Settings() {
                         {role.description || "No description"}
                       </p>
                     </div>
+                    <p className="text-sm">
+                      <span className="text-muted-foreground">Members: </span>
+                      {role.member_count || 0}
+                    </p>
                     <div className="flex gap-2">
                       <Button
                         size="sm"
