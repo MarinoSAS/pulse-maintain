@@ -62,6 +62,13 @@ interface VendorType {
   vendor_count?: number;
 }
 
+interface TeamRole {
+  id: string;
+  name: string;
+  description: string | null;
+  member_count?: number;
+}
+
 export default function Settings() {
   const { isAdmin, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
@@ -92,6 +99,14 @@ export default function Settings() {
   const [vendorTypeDescription, setVendorTypeDescription] = useState("");
   const [deleteVendorType, setDeleteVendorType] = useState<VendorType | null>(null);
 
+  // Team Roles
+  const [teamRoles, setTeamRoles] = useState<TeamRole[]>([]);
+  const [teamRoleDialogOpen, setTeamRoleDialogOpen] = useState(false);
+  const [editingTeamRole, setEditingTeamRole] = useState<TeamRole | null>(null);
+  const [teamRoleName, setTeamRoleName] = useState("");
+  const [teamRoleDescription, setTeamRoleDescription] = useState("");
+  const [deleteTeamRole, setDeleteTeamRole] = useState<TeamRole | null>(null);
+
   useEffect(() => {
     if (!roleLoading && !isAdmin) {
       navigate("/");
@@ -104,6 +119,7 @@ export default function Settings() {
       loadAssetCategories();
       loadMaintenanceTypes();
       loadVendorTypes();
+      loadTeamRoles();
     }
   }, [isAdmin]);
 
@@ -388,6 +404,83 @@ export default function Settings() {
     setEditingVendorType(null);
   };
 
+  // Team Roles Functions
+  const loadTeamRoles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("team_roles")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      setTeamRoles(data || []);
+    } catch (error: any) {
+      toast.error(`Failed to load team roles: ${error.message}`);
+    }
+  };
+
+  const handleSaveTeamRole = async () => {
+    if (!teamRoleName.trim()) {
+      toast.error("Role name is required");
+      return;
+    }
+
+    try {
+      if (editingTeamRole) {
+        const { error } = await supabase
+          .from("team_roles")
+          .update({
+            name: teamRoleName,
+            description: teamRoleDescription || null,
+          })
+          .eq("id", editingTeamRole.id);
+
+        if (error) throw error;
+        toast.success("Role updated successfully");
+      } else {
+        const { error } = await supabase
+          .from("team_roles")
+          .insert({
+            name: teamRoleName,
+            description: teamRoleDescription || null,
+          });
+
+        if (error) throw error;
+        toast.success("Role created successfully");
+      }
+
+      clearTeamRoleFields();
+      setTeamRoleDialogOpen(false);
+      loadTeamRoles();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save role");
+    }
+  };
+
+  const handleDeleteTeamRole = async () => {
+    if (!deleteTeamRole) return;
+
+    try {
+      const { error } = await supabase
+        .from("team_roles")
+        .delete()
+        .eq("id", deleteTeamRole.id);
+
+      if (error) throw error;
+      toast.success("Role deleted successfully");
+      setDeleteTeamRole(null);
+      loadTeamRoles();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete role");
+    }
+  };
+
+  const clearTeamRoleFields = () => {
+    setTeamRoleName("");
+    setTeamRoleDescription("");
+    setEditingTeamRole(null);
+  };
+
   if (!isAdmin) {
     return null;
   }
@@ -398,15 +491,16 @@ export default function Settings() {
         <div>
           <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold">Settings</h1>
           <p className="text-sm md:text-base text-muted-foreground mt-2 md:mt-1">
-            Manage asset categories, maintenance types, and vendor types
+            Manage asset categories, maintenance types, vendor types, and team roles
           </p>
         </div>
 
         <Tabs defaultValue="asset-categories" className="space-y-4 md:space-y-6">
-          <TabsList className="flex flex-col md:grid w-full md:grid-cols-3 h-auto md:h-10">
+          <TabsList className="flex flex-col md:grid w-full md:grid-cols-4 h-auto md:h-10">
             <TabsTrigger value="asset-categories" className="text-xs md:text-sm">Asset Categories</TabsTrigger>
             <TabsTrigger value="maintenance-types" className="text-xs md:text-sm">Maintenance Types</TabsTrigger>
             <TabsTrigger value="vendor-types" className="text-xs md:text-sm">Vendor Types</TabsTrigger>
+            <TabsTrigger value="team-roles" className="text-xs md:text-sm">Team Roles</TabsTrigger>
           </TabsList>
 
           {/* Asset Categories Tab */}
@@ -920,6 +1014,152 @@ export default function Settings() {
               ))}
             </div>
           </TabsContent>
+
+          {/* Team Roles Tab */}
+          <TabsContent value="team-roles" className="space-y-4">
+            <div className="flex flex-col gap-3 md:flex-row md:justify-between md:items-center">
+              <p className="text-xs md:text-sm text-muted-foreground">
+                Manage team member roles for task assignment
+              </p>
+              <Dialog open={teamRoleDialogOpen} onOpenChange={(open) => {
+                setTeamRoleDialogOpen(open);
+                if (open) {
+                  clearTeamRoleFields();
+                }
+              }}>
+                <DialogTrigger asChild>
+                  <Button className="w-full md:w-auto">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Role
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="w-[95vw] max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editingTeamRole ? "Edit Role" : "Add Role"}
+                    </DialogTitle>
+                    <DialogDescription>
+                      Create or modify team member role settings
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="teamRoleName">Name *</Label>
+                      <Input
+                        id="teamRoleName"
+                        value={teamRoleName}
+                        onChange={(e) => setTeamRoleName(e.target.value)}
+                        placeholder="e.g., Mechanic"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="teamRoleDescription">Description</Label>
+                      <Textarea
+                        id="teamRoleDescription"
+                        value={teamRoleDescription}
+                        onChange={(e) => setTeamRoleDescription(e.target.value)}
+                        placeholder="Optional description"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-3">
+                      <Button variant="outline" onClick={() => {
+                        clearTeamRoleFields();
+                        setTeamRoleDialogOpen(false);
+                      }}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleSaveTeamRole}>
+                        {editingTeamRole ? "Update" : "Create"}
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {/* Desktop Table */}
+            <Card className="hidden md:block">
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {teamRoles.map((role) => (
+                      <TableRow key={role.id}>
+                        <TableCell className="font-medium">{role.name}</TableCell>
+                        <TableCell>{role.description || "-"}</TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingTeamRole(role);
+                              setTeamRoleName(role.name);
+                              setTeamRoleDescription(role.description || "");
+                              setTeamRoleDialogOpen(true);
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => setDeleteTeamRole(role)}
+                          >
+                            Delete
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            {/* Mobile Card List */}
+            <div className="block md:hidden space-y-3">
+              {teamRoles.map((role) => (
+                <Card key={role.id} className="p-4">
+                  <div className="space-y-3">
+                    <div>
+                      <h3 className="font-medium">{role.name}</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {role.description || "No description"}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingTeamRole(role);
+                          setTeamRoleName(role.name);
+                          setTeamRoleDescription(role.description || "");
+                          setTeamRoleDialogOpen(true);
+                        }}
+                        className="flex-1"
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setDeleteTeamRole(role)}
+                        className="flex-1"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
         </Tabs>
 
         {/* Delete Confirmations */}
@@ -975,6 +1215,26 @@ export default function Settings() {
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleDeleteVendorType}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={!!deleteTeamRole} onOpenChange={() => setDeleteTeamRole(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Team Role?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete "{deleteTeamRole?.name}". This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteTeamRole}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
                 Delete
