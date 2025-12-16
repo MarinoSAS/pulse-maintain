@@ -139,7 +139,7 @@ export default function AssetDetail() {
     category: "",
     company: "" as 'Unifruit' | 'Limnia' | 'HRC' | 'Other',
     status: "" as 'Active' | 'Maintenance' | 'Inactive',
-    assigned_to: "",
+    assigned_to: "__none__",
     last_service: "",
     odometer_reading: "",
   });
@@ -160,7 +160,7 @@ export default function AssetDetail() {
         category: asset.category,
         company: asset.company,
         status: asset.status as 'Active' | 'Maintenance' | 'Inactive',
-        assigned_to: asset.assigned_to || "",
+        assigned_to: asset.assigned_to || "__none__",
         last_service: asset.last_service || "",
         odometer_reading: asset.odometer_reading?.toString() || "",
       });
@@ -193,7 +193,7 @@ export default function AssetDetail() {
           category: editForm.category,
           company: editForm.company,
           status: editForm.status,
-          assigned_to: editForm.assigned_to || null,
+          assigned_to: editForm.assigned_to === "__none__" ? null : editForm.assigned_to || null,
           last_service: editForm.last_service || null,
           odometer_reading: editForm.odometer_reading ? parseInt(editForm.odometer_reading) : null,
         })
@@ -544,7 +544,7 @@ export default function AssetDetail() {
                       <SelectValue placeholder="Unassigned" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Unassigned</SelectItem>
+                      <SelectItem value="__none__">Unassigned</SelectItem>
                       {teamMembers.map((member) => (
                         <SelectItem key={member.id} value={member.id}>
                           {member.name} ({member.role})
