@@ -2,7 +2,7 @@ import { Layout } from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Package, Plus, Trash2 } from "lucide-react";
+import { Package, Plus, Trash2, LayoutGrid } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,6 +52,7 @@ export default function Assets() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [categories, setCategories] = useState<AssetCategory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const { isAdmin } = useUserRole();
 
   useEffect(() => {
@@ -103,6 +104,9 @@ export default function Assets() {
   };
 
   const totalAssets = assets.length;
+  const filteredAssets = selectedCategory 
+    ? assets.filter(asset => asset.category === selectedCategory)
+    : assets;
 
 
   return (
@@ -127,22 +131,49 @@ export default function Assets() {
           </Button>
         </div>
 
-        {/* Category Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Category Filter Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {/* All Assets Card */}
+          <Card 
+            className={`shadow-md bg-gradient-card hover:shadow-lg transition-all cursor-pointer ${
+              selectedCategory === null ? "ring-2 ring-primary" : ""
+            }`}
+            onClick={() => setSelectedCategory(null)}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">All Assets</p>
+                  <p className="text-2xl font-bold mt-1">{totalAssets}</p>
+                </div>
+                <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                  <LayoutGrid className="w-5 h-5" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
           {categories.map((category) => {
             const IconComponent = getIconComponent(category.icon);
+            const isSelected = selectedCategory === category.name;
             return (
-              <Card key={category.id} className="shadow-md bg-gradient-card hover:shadow-lg transition-all cursor-pointer">
-                <CardContent className="p-6">
+              <Card 
+                key={category.id} 
+                className={`shadow-md bg-gradient-card hover:shadow-lg transition-all cursor-pointer ${
+                  isSelected ? "ring-2 ring-primary" : ""
+                }`}
+                onClick={() => setSelectedCategory(category.name)}
+              >
+                <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">{category.name}</p>
-                      <p className="text-3xl font-bold mt-2">
+                      <p className="text-2xl font-bold mt-1">
                         {category.asset_count || 0}
                       </p>
                     </div>
-                    <div className={`p-3 rounded-xl ${category.color || "bg-primary/10 text-primary"}`}>
-                      <IconComponent className="w-6 h-6" />
+                    <div className={`p-2 rounded-xl ${category.color || "bg-primary/10 text-primary"}`}>
+                      <IconComponent className="w-5 h-5" />
                     </div>
                   </div>
                 </CardContent>
@@ -154,16 +185,24 @@ export default function Assets() {
         {/* Assets List */}
         <Card className="shadow-md bg-gradient-card">
           <CardContent className="p-6">
-            <h2 className="text-xl font-bold mb-6">All Assets</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold">
+                {selectedCategory ? `${selectedCategory}` : "All Assets"}
+              </h2>
+              <Badge variant="outline">{filteredAssets.length} assets</Badge>
+            </div>
             {loading ? (
               <div className="text-center py-8">Loading assets...</div>
-            ) : assets.length === 0 ? (
+            ) : filteredAssets.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No assets yet. Add your first asset using the button above.
+                {selectedCategory 
+                  ? `No assets in ${selectedCategory} category.`
+                  : "No assets yet. Add your first asset using the button above."
+                }
               </div>
             ) : (
               <div className="space-y-3">
-                 {assets.map((asset) => (
+                 {filteredAssets.map((asset) => (
                   <div
                     key={asset.id}
                     className="flex items-center justify-between p-4 rounded-lg border border-border bg-background/50 hover:bg-background transition-colors group hover:border-primary/50"
