@@ -77,28 +77,41 @@ export function FuelUpload() {
       const sheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
 
-      // Find header row
+      // Debug: Log first few rows
+      console.log("📊 Sheet names:", workbook.SheetNames);
+      console.log("📊 First 5 rows:", jsonData.slice(0, 5));
+      console.log("📊 Total rows:", jsonData.length);
+
+      // Find header row with null checks
       const headerRow = jsonData.find(row => 
-        row.some(cell => {
+        row && Array.isArray(row) && row.some(cell => {
+          if (cell === null || cell === undefined) return false;
           const cellStr = String(cell).toLowerCase();
           return cellStr.includes("date") || 
             cellStr.includes("quantity") ||
             cellStr.includes("company") ||
+            cellStr.includes("department") ||
             cellStr.includes("truck") ||
             cellStr.includes("vehicle") ||
             cellStr.includes("liters");
         })
       );
 
+      console.log("📊 Found header row:", headerRow);
+
       if (!headerRow) {
         toast.error("Could not find headers (Date, Company, Quantity) in the Excel file");
+        console.error("❌ No header row found. First 5 rows:", jsonData.slice(0, 5));
         setIsParsing(false);
         return;
       }
 
       const headerIndex = jsonData.indexOf(headerRow);
-      const headers = headerRow.map(h => String(h).toLowerCase().trim());
+      const headers = headerRow.map(h => h ? String(h).toLowerCase().trim() : "");
       
+      console.log("📊 Header index:", headerIndex);
+      console.log("📊 Normalized headers:", headers);
+
       // Find column indices
       const dateIdx = headers.findIndex(h => h.includes("date"));
       const timeIdx = headers.findIndex(h => h.includes("time"));
@@ -126,8 +139,13 @@ export function FuelUpload() {
         h.includes("φορτηγό") // Greek for truck
       );
 
+      // Debug: Show detected columns
+      console.log("📊 Column indices - Date:", dateIdx, "Time:", timeIdx, "Company:", companyIdx, "Quantity:", quantityIdx, "Truck:", truckIdx);
+      toast.info(`Columns found: Date[${dateIdx}], Company[${companyIdx}], Qty[${quantityIdx}], Vehicle[${truckIdx}]`);
+
       if (dateIdx === -1 || quantityIdx === -1) {
         toast.error("Excel must have Date and Quantity columns");
+        console.error("❌ Missing required columns. Headers found:", headers);
         setIsParsing(false);
         return;
       }
