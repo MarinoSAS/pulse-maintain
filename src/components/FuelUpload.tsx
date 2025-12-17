@@ -313,6 +313,13 @@ export function FuelUpload() {
     setParsedRecords(prev => prev.filter((_, i) => i !== index));
   };
 
+  const clearAllRecords = () => {
+    setParsedRecords([]);
+    setFile(null);
+    setSelectedMonth("");
+    toast.info("Upload cleared");
+  };
+
   const handleUpload = async () => {
     const validRecords = parsedRecords.filter(r => r.assetId && (r.matchStatus === "matched" || r.matchStatus === "partial"));
     
@@ -446,6 +453,14 @@ export function FuelUpload() {
                     </Badge>
                   )}
                 </div>
+                <Button 
+                  variant="outline"
+                  onClick={clearAllRecords}
+                  className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Clear All
+                </Button>
                 <Button 
                   onClick={handleUpload} 
                   disabled={isUploading || uploadableCount === 0}
