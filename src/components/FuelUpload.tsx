@@ -75,11 +75,15 @@ export function FuelUpload() {
 
       // Find header row
       const headerRow = jsonData.find(row => 
-        row.some(cell => 
-          String(cell).toLowerCase().includes("date") || 
-          String(cell).toLowerCase().includes("quantity") ||
-          String(cell).toLowerCase().includes("company")
-        )
+        row.some(cell => {
+          const cellStr = String(cell).toLowerCase();
+          return cellStr.includes("date") || 
+            cellStr.includes("quantity") ||
+            cellStr.includes("company") ||
+            cellStr.includes("truck") ||
+            cellStr.includes("vehicle") ||
+            cellStr.includes("liters");
+        })
       );
 
       if (!headerRow) {
@@ -96,6 +100,20 @@ export function FuelUpload() {
       const timeIdx = headers.findIndex(h => h.includes("time"));
       const companyIdx = headers.findIndex(h => h.includes("company"));
       const quantityIdx = headers.findIndex(h => h.includes("quantity") || h.includes("liters") || h.includes("litres"));
+      
+      // Find truck/vehicle column - check for various possible headers
+      const truckIdx = headers.findIndex(h => 
+        h.includes("truck") || 
+        h.includes("vehicle") || 
+        h.includes("asset") || 
+        h.includes("license") || 
+        h.includes("plate") ||
+        h.includes("registration") ||
+        h.includes("reg") ||
+        h.includes("αριθμός") || // Greek
+        h.includes("οχημα") || // Greek for vehicle
+        h.includes("φορτηγό") // Greek for truck
+      );
 
       if (dateIdx === -1 || quantityIdx === -1) {
         toast.error("Excel must have Date and Quantity columns");
@@ -114,6 +132,7 @@ export function FuelUpload() {
         const rawTime = timeIdx !== -1 ? row[timeIdx] : null;
         const rawCompany = companyIdx !== -1 ? String(row[companyIdx] || "").trim() : "";
         const rawQuantity = row[quantityIdx];
+        const rawTruck = truckIdx !== -1 ? String(row[truckIdx] || "").trim() : "";
 
         if (!rawDate || !rawQuantity) continue;
 
@@ -156,10 +175,44 @@ export function FuelUpload() {
         else if (company.includes("HRC")) company = "HRC";
         else company = "Other";
 
-        // Try to auto-match asset by company
-        const matchedAsset = assets.find(a => 
-          a.company === company
-        );
+        // Try to match asset by truck name first, then by company
+        let matchedAsset: Asset | undefined;
+        
+        if (rawTruck) {
+          // Normalize truck name for matching (remove spaces, dashes, make uppercase)
+          const normalizedTruck = rawTruck.replace(/[-\s.]/g, "").toUpperCase();
+          
+          matchedAsset = assets.find(a => {
+            const normalizedAssetName = a.name.replace(/[-\s.]/g, "").toUpperCase();
+            const normalizedAssetId = a.asset_id.replace(/[-\s.]/g, "").toUpperCase();
+            
+            // Exact match
+            if (normalizedAssetName === normalizedTruck || normalizedAssetId === normalizedTruck) {
+              return true;
+            }
+            // Partial match - truck name contains asset name or vice versa
+            if (normalizedAssetName.includes(normalizedTruck) || normalizedTruck.includes(normalizedAssetName)) {
+              return true;
+            }
+            if (normalizedAssetId.includes(normalizedTruck) || normalizedTruck.includes(normalizedAssetId)) {
+              return true;
+            }
+            return false;
+          });
+          
+          // If matched by truck name, verify company matches (if company column exists)
+          if (matchedAsset && companyIdx !== -1 && company !== "Other") {
+            if (matchedAsset.company !== company) {
+              // Company mismatch - still use the truck match but log warning
+              console.warn(`Truck ${rawTruck} matched to ${matchedAsset.name} but company differs: Excel=${company}, Asset=${matchedAsset.company}`);
+            }
+          }
+        }
+        
+        // Fallback: if no truck name or no match, try matching by company (first asset of that company)
+        if (!matchedAsset && company !== "Other") {
+          matchedAsset = assets.find(a => a.company === company);
+        }
 
         records.push({
           date: parsedDate.toISOString().split("T")[0],
@@ -271,7 +324,7 @@ export function FuelUpload() {
             Upload Fuel Report
           </CardTitle>
           <CardDescription>
-            Upload an Excel file with columns: Date, Time (optional), Company (Limnia/Unifruit/HRC), Quantity (liters)
+            Upload an Excel file with columns: Date, Truck/Vehicle (license plate), Company (Limnia/Unifruit/HRC), Quantity (liters)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
