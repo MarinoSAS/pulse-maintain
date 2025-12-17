@@ -25,6 +25,7 @@ import NotFound from "./pages/NotFound";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Install from "./pages/Install";
+import Fuel from "./pages/Fuel";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -49,6 +50,7 @@ const App = () => (
           <Route path="/maintenance" element={<Maintenance />} />
           <Route path="/expenses" element={<Expenses />} />
           <Route path="/expenses/new" element={<NewExpense />} />
+          <Route path="/fuel" element={<Fuel />} />
           <Route path="/vendors" element={<Vendors />} />
           <Route path="/vendors/new" element={<NewVendor />} />
           <Route path="/vendors/:id" element={<VendorDetail />} />
