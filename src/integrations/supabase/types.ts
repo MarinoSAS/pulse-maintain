@@ -265,6 +265,59 @@ export type Database = {
           },
         ]
       }
+      fuel_records: {
+        Row: {
+          asset_id: string
+          company: string
+          cost: number | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          liters: number
+          month_year: string
+          notes: string | null
+          record_date: string
+          record_time: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          asset_id: string
+          company: string
+          cost?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          liters: number
+          month_year: string
+          notes?: string | null
+          record_date: string
+          record_time?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          asset_id?: string
+          company?: string
+          cost?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          liters?: number
+          month_year?: string
+          notes?: string | null
+          record_date?: string
+          record_time?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fuel_records_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invitations: {
         Row: {
           accepted: boolean | null

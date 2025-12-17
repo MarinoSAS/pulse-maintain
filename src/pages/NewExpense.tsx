@@ -87,6 +87,7 @@ export default function NewExpense() {
   const [assets, setAssets] = useState<any[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
   const [requirements, setRequirements] = useState<any[]>([]);
+  const [serviceTypes, setServiceTypes] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showInvoiceUpload, setShowInvoiceUpload] = useState(false);
   const [invoiceFilePath, setInvoiceFilePath] = useState<string | null>(null);
@@ -110,7 +111,7 @@ export default function NewExpense() {
 
   const serviceType = form.watch("serviceType");
   const selectedAssetId = form.watch("assetId");
-  const isMaintenanceService = ["Service", "Oil Change", "MOT", "Tachograph", "Speed Limiter", "Repair", "Inspection"].includes(serviceType);
+  const isMaintenanceService = serviceTypes.includes(serviceType) || ["Service", "Oil Change", "MOT", "Tachograph", "Speed Limiter", "Repair", "Inspection"].includes(serviceType);
 
   useEffect(() => {
     loadAssets();
@@ -120,6 +121,7 @@ export default function NewExpense() {
   useEffect(() => {
     if (selectedAssetId) {
       loadRequirements(selectedAssetId);
+      loadServiceTypesForAsset(selectedAssetId);
       // Auto-populate company from selected asset
       const selectedAsset = assets.find(a => a.id === selectedAssetId);
       if (selectedAsset?.company) {
@@ -127,6 +129,48 @@ export default function NewExpense() {
       }
     }
   }, [selectedAssetId]);
+
+  const loadServiceTypesForAsset = async (assetId: string) => {
+    try {
+      const selectedAsset = assets.find(a => a.id === assetId);
+      if (!selectedAsset?.category) {
+        setServiceTypes([]);
+        return;
+      }
+
+      // Get the asset category ID
+      const { data: categoryData } = await supabase
+        .from("asset_categories")
+        .select("id")
+        .eq("name", selectedAsset.category)
+        .maybeSingle();
+
+      if (categoryData) {
+        // Get maintenance types linked to this category
+        const { data: typeLinks } = await supabase
+          .from("category_maintenance_types")
+          .select("maintenance_type_id")
+          .eq("asset_category_id", categoryData.id);
+
+        if (typeLinks && typeLinks.length > 0) {
+          const typeIds = typeLinks.map(t => t.maintenance_type_id);
+          const { data: types } = await supabase
+            .from("maintenance_types")
+            .select("name")
+            .in("id", typeIds);
+
+          setServiceTypes(types?.map(t => t.name) || []);
+        } else {
+          setServiceTypes([]);
+        }
+      } else {
+        setServiceTypes([]);
+      }
+    } catch (error) {
+      console.error("Failed to load service types:", error);
+      setServiceTypes([]);
+    }
+  };
 
   const loadAssets = async () => {
     try {
@@ -414,16 +458,26 @@ export default function NewExpense() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="Service">Service</SelectItem>
-                        <SelectItem value="Oil Change">Oil Change</SelectItem>
-                        <SelectItem value="MOT">MOT</SelectItem>
-                        <SelectItem value="Tachograph">Tachograph</SelectItem>
-                        <SelectItem value="Speed Limiter">Speed Limiter</SelectItem>
-                        <SelectItem value="Repair">Repair</SelectItem>
-                        <SelectItem value="Brake Service">Brake Service</SelectItem>
-                        <SelectItem value="Tire Replacement">Tire Replacement</SelectItem>
-                        <SelectItem value="Parts Replacement">Parts Replacement</SelectItem>
-                        <SelectItem value="Inspection">Inspection</SelectItem>
+                        {serviceTypes.length > 0 ? (
+                          serviceTypes.map((type) => (
+                            <SelectItem key={type} value={type}>
+                              {type}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <>
+                            <SelectItem value="Service">Service</SelectItem>
+                            <SelectItem value="Oil Change">Oil Change</SelectItem>
+                            <SelectItem value="MOT">MOT</SelectItem>
+                            <SelectItem value="Tachograph">Tachograph</SelectItem>
+                            <SelectItem value="Speed Limiter">Speed Limiter</SelectItem>
+                            <SelectItem value="Repair">Repair</SelectItem>
+                            <SelectItem value="Brake Service">Brake Service</SelectItem>
+                            <SelectItem value="Tire Replacement">Tire Replacement</SelectItem>
+                            <SelectItem value="Parts Replacement">Parts Replacement</SelectItem>
+                            <SelectItem value="Inspection">Inspection</SelectItem>
+                          </>
+                        )}
                         <SelectItem value="Other">Other</SelectItem>
                       </SelectContent>
                     </Select>
