@@ -11,15 +11,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { Upload, FileSpreadsheet, Check, AlertCircle, Trash2 } from "lucide-react";
 import * as XLSX from "xlsx";
 
+type MatchStatus = "matched" | "partial" | "not_found" | "no_company_assets";
+
 interface ParsedFuelRecord {
   date: string;
   time: string | null;
   company: string;
+  rawCompany: string;
   liters: number;
+  rawTruck: string;
   assetId?: string;
   assetName?: string;
-  status: "pending" | "matched" | "error";
-  error?: string;
+  matchStatus: MatchStatus;
+  issueDetails?: string;
 }
 
 interface Asset {
@@ -98,17 +102,24 @@ export function FuelUpload() {
       // Find column indices
       const dateIdx = headers.findIndex(h => h.includes("date"));
       const timeIdx = headers.findIndex(h => h.includes("time"));
-      const companyIdx = headers.findIndex(h => h.includes("company"));
+      const companyIdx = headers.findIndex(h => 
+        h.includes("company") || 
+        h.includes("department") || 
+        h.includes("dept")
+      );
       const quantityIdx = headers.findIndex(h => h.includes("quantity") || h.includes("liters") || h.includes("litres"));
       
       // Find truck/vehicle column - check for various possible headers
       const truckIdx = headers.findIndex(h => 
         h.includes("truck") || 
+        h.includes("vehicle number") ||
+        h.includes("vehicle no") ||
         h.includes("vehicle") || 
         h.includes("asset") || 
         h.includes("license") || 
         h.includes("plate") ||
         h.includes("registration") ||
+        h.includes("reg no") ||
         h.includes("reg") ||
         h.includes("αριθμός") || // Greek
         h.includes("οχημα") || // Greek for vehicle
@@ -169,59 +180,96 @@ export function FuelUpload() {
         if (isNaN(liters) || liters <= 0) continue;
 
         // Normalize company name
-        let company = rawCompany.toUpperCase();
-        if (company.includes("LIMNIA")) company = "Limnia";
-        else if (company.includes("UNIFRUIT")) company = "Unifruit";
-        else if (company.includes("HRC")) company = "HRC";
+        const rawCompanyUpper = rawCompany.toUpperCase();
+        let company: string;
+        if (rawCompanyUpper.includes("LIMNIA")) company = "Limnia";
+        else if (rawCompanyUpper.includes("UNIFRUIT")) company = "Unifruit";
+        else if (rawCompanyUpper.includes("HORECA") || rawCompanyUpper.includes("HRC")) company = "HRC";
         else company = "Other";
 
         // Try to match asset by truck name first, then by company
         let matchedAsset: Asset | undefined;
+        let matchStatus: MatchStatus = "not_found";
+        let issueDetails: string | undefined;
+        let wasRSuffixStripped = false;
         
         if (rawTruck) {
           // Normalize truck name for matching (remove spaces, dashes, make uppercase)
-          const normalizedTruck = rawTruck.replace(/[-\s.]/g, "").toUpperCase();
+          let normalizedTruck = rawTruck.replace(/[-\s.]/g, "").toUpperCase();
           
+          // Try exact match first
           matchedAsset = assets.find(a => {
             const normalizedAssetName = a.name.replace(/[-\s.]/g, "").toUpperCase();
             const normalizedAssetId = a.asset_id.replace(/[-\s.]/g, "").toUpperCase();
-            
-            // Exact match
-            if (normalizedAssetName === normalizedTruck || normalizedAssetId === normalizedTruck) {
-              return true;
-            }
-            // Partial match - truck name contains asset name or vice versa
-            if (normalizedAssetName.includes(normalizedTruck) || normalizedTruck.includes(normalizedAssetName)) {
-              return true;
-            }
-            if (normalizedAssetId.includes(normalizedTruck) || normalizedTruck.includes(normalizedAssetId)) {
-              return true;
-            }
-            return false;
+            return normalizedAssetName === normalizedTruck || normalizedAssetId === normalizedTruck;
           });
           
-          // If matched by truck name, verify company matches (if company column exists)
-          if (matchedAsset && companyIdx !== -1 && company !== "Other") {
-            if (matchedAsset.company !== company) {
-              // Company mismatch - still use the truck match but log warning
-              console.warn(`Truck ${rawTruck} matched to ${matchedAsset.name} but company differs: Excel=${company}, Asset=${matchedAsset.company}`);
+          // If no match and truck ends with 'R', try without the R suffix
+          if (!matchedAsset && normalizedTruck.endsWith("R") && normalizedTruck.length > 1) {
+            const withoutR = normalizedTruck.slice(0, -1);
+            matchedAsset = assets.find(a => {
+              const normalizedAssetName = a.name.replace(/[-\s.]/g, "").toUpperCase();
+              const normalizedAssetId = a.asset_id.replace(/[-\s.]/g, "").toUpperCase();
+              return normalizedAssetName === withoutR || normalizedAssetId === withoutR;
+            });
+            if (matchedAsset) {
+              wasRSuffixStripped = true;
+            }
+          }
+          
+          // Try partial match if still no match
+          if (!matchedAsset) {
+            matchedAsset = assets.find(a => {
+              const normalizedAssetName = a.name.replace(/[-\s.]/g, "").toUpperCase();
+              const normalizedAssetId = a.asset_id.replace(/[-\s.]/g, "").toUpperCase();
+              return normalizedAssetName.includes(normalizedTruck) || normalizedTruck.includes(normalizedAssetName) ||
+                     normalizedAssetId.includes(normalizedTruck) || normalizedTruck.includes(normalizedAssetId);
+            });
+          }
+          
+          // Handle forklift matching
+          if (!matchedAsset && normalizedTruck.includes("FORKLIFT")) {
+            matchedAsset = assets.find(a => 
+              a.name.toLowerCase().includes("forklift") || 
+              a.name.toLowerCase().includes("clark")
+            );
+            if (matchedAsset) {
+              issueDetails = `Matched to ${matchedAsset.name}`;
             }
           }
         }
         
-        // Fallback: if no truck name or no match, try matching by company (first asset of that company)
-        if (!matchedAsset && company !== "Other") {
-          matchedAsset = assets.find(a => a.company === company);
+        // Check if company has any assets
+        const companyHasAssets = assets.some(a => a.company === company);
+        
+        // Determine match status and issue details
+        if (matchedAsset) {
+          matchStatus = wasRSuffixStripped ? "partial" : "matched";
+          if (wasRSuffixStripped) {
+            issueDetails = `"${rawTruck}" → matched to "${matchedAsset.name}" (R suffix stripped)`;
+          }
+        } else if (!rawTruck) {
+          issueDetails = "No vehicle number in Excel";
+          matchStatus = "not_found";
+        } else if (!companyHasAssets && company !== "Other") {
+          matchStatus = "no_company_assets";
+          issueDetails = `No ${company} assets in database`;
+        } else {
+          matchStatus = "not_found";
+          issueDetails = `"${rawTruck}" not found in assets`;
         }
 
         records.push({
           date: parsedDate.toISOString().split("T")[0],
           time: timeStr,
           company,
+          rawCompany,
+          rawTruck,
           liters,
           assetId: matchedAsset?.id,
           assetName: matchedAsset?.name,
-          status: matchedAsset ? "matched" : "pending",
+          matchStatus,
+          issueDetails,
         });
       }
 
@@ -255,7 +303,8 @@ export function FuelUpload() {
         ...record,
         assetId,
         assetName: asset?.name,
-        status: "matched" as const,
+        matchStatus: "matched" as const,
+        issueDetails: undefined,
       };
     }));
   };
@@ -265,7 +314,7 @@ export function FuelUpload() {
   };
 
   const handleUpload = async () => {
-    const validRecords = parsedRecords.filter(r => r.assetId && r.status === "matched");
+    const validRecords = parsedRecords.filter(r => r.assetId && (r.matchStatus === "matched" || r.matchStatus === "partial"));
     
     if (validRecords.length === 0) {
       toast.error("Please assign trucks to all fuel records before uploading");
@@ -312,8 +361,11 @@ export function FuelUpload() {
     }
   };
 
-  const matchedCount = parsedRecords.filter(r => r.status === "matched").length;
-  const pendingCount = parsedRecords.filter(r => r.status === "pending").length;
+  const matchedCount = parsedRecords.filter(r => r.matchStatus === "matched").length;
+  const partialCount = parsedRecords.filter(r => r.matchStatus === "partial").length;
+  const notFoundCount = parsedRecords.filter(r => r.matchStatus === "not_found").length;
+  const noCompanyCount = parsedRecords.filter(r => r.matchStatus === "no_company_assets").length;
+  const uploadableCount = matchedCount + partialCount;
 
   return (
     <div className="space-y-6">
@@ -372,25 +424,34 @@ export function FuelUpload() {
                   Assign trucks to each fuel record before uploading
                 </CardDescription>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+                <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="secondary" className="bg-green-500/10 text-green-600">
                     <Check className="w-3 h-3 mr-1" />
                     {matchedCount} matched
                   </Badge>
-                  {pendingCount > 0 && (
-                    <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600">
-                      <AlertCircle className="w-3 h-3 mr-1" />
-                      {pendingCount} pending
+                  {partialCount > 0 && (
+                    <Badge variant="secondary" className="bg-amber-500/10 text-amber-600">
+                      ⚠️ {partialCount} partial
+                    </Badge>
+                  )}
+                  {notFoundCount > 0 && (
+                    <Badge variant="secondary" className="bg-red-500/10 text-red-600">
+                      ❌ {notFoundCount} not found
+                    </Badge>
+                  )}
+                  {noCompanyCount > 0 && (
+                    <Badge variant="secondary" className="bg-orange-500/10 text-orange-600">
+                      🏢 {noCompanyCount} no company assets
                     </Badge>
                   )}
                 </div>
                 <Button 
                   onClick={handleUpload} 
-                  disabled={isUploading || matchedCount === 0}
+                  disabled={isUploading || uploadableCount === 0}
                 >
                   <Upload className="w-4 h-4 mr-2" />
-                  {isUploading ? "Uploading..." : `Upload ${matchedCount} Records`}
+                  {isUploading ? "Uploading..." : `Upload ${uploadableCount} Records`}
                 </Button>
               </div>
             </div>
@@ -400,21 +461,49 @@ export function FuelUpload() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Status</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead>Time</TableHead>
+                    <TableHead>Vehicle (Excel)</TableHead>
                     <TableHead>Company</TableHead>
                     <TableHead>Liters</TableHead>
-                    <TableHead>Truck</TableHead>
+                    <TableHead>Assign Truck</TableHead>
+                    <TableHead>Issue</TableHead>
                     <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {parsedRecords.map((record, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{record.date}</TableCell>
-                      <TableCell>{record.time || "-"}</TableCell>
+                    <TableRow key={index} className={
+                      record.matchStatus === "matched" ? "bg-green-500/5" :
+                      record.matchStatus === "partial" ? "bg-amber-500/5" :
+                      record.matchStatus === "no_company_assets" ? "bg-orange-500/5" :
+                      "bg-red-500/5"
+                    }>
+                      <TableCell>
+                        {record.matchStatus === "matched" && (
+                          <Badge className="bg-green-500/20 text-green-700 border-green-500/30">✅ Matched</Badge>
+                        )}
+                        {record.matchStatus === "partial" && (
+                          <Badge className="bg-amber-500/20 text-amber-700 border-amber-500/30">⚠️ Partial</Badge>
+                        )}
+                        {record.matchStatus === "not_found" && (
+                          <Badge className="bg-red-500/20 text-red-700 border-red-500/30">❌ Not Found</Badge>
+                        )}
+                        {record.matchStatus === "no_company_assets" && (
+                          <Badge className="bg-orange-500/20 text-orange-700 border-orange-500/30">🏢 No Assets</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">{record.date}</TableCell>
+                      <TableCell>
+                        <code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">
+                          {record.rawTruck || "-"}
+                        </code>
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline">{record.company}</Badge>
+                        {record.rawCompany && record.rawCompany.toUpperCase() !== record.company.toUpperCase() && (
+                          <span className="text-xs text-muted-foreground ml-1">({record.rawCompany})</span>
+                        )}
                       </TableCell>
                       <TableCell className="font-medium">{record.liters.toFixed(1)} L</TableCell>
                       <TableCell>
@@ -422,7 +511,11 @@ export function FuelUpload() {
                           value={record.assetId || ""}
                           onValueChange={(value) => updateRecordAsset(index, value)}
                         >
-                          <SelectTrigger className={record.status === "matched" ? "border-green-500" : "border-yellow-500"}>
+                          <SelectTrigger className={
+                            record.matchStatus === "matched" ? "border-green-500" : 
+                            record.matchStatus === "partial" ? "border-amber-500" :
+                            "border-red-500"
+                          }>
                             <SelectValue placeholder="Select truck" />
                           </SelectTrigger>
                           <SelectContent>
@@ -445,6 +538,9 @@ export function FuelUpload() {
                             )}
                           </SelectContent>
                         </Select>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[200px]">
+                        {record.issueDetails || (record.matchStatus === "matched" ? "-" : "")}
                       </TableCell>
                       <TableCell>
                         <Button
