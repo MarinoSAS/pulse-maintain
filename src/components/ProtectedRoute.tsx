@@ -47,7 +47,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
 
   if (requireAdmin && !isAdmin) {
     toast.error("Access denied. Admin privileges required.");
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
